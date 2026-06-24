@@ -159,5 +159,33 @@ export const MIGRATIONS: string[] = [
     date_entree TEXT NOT NULL,
     UNIQUE(question_id, date_entree)
   );
+  `,
+
+  // v3 — Quêtes exemples issues des screenshots Notion (Maintenant/Après/Plus tard)
+  `
+  DELETE FROM taches WHERE statut IN ('active', 'en_cours');
+
+  INSERT INTO taches (titre, description, niveau_energie, duree_estimee_min, xp_recompense, coins_recompense, categorie) VALUES
+    ('Planifier 2 créneaux de deep work cette semaine',
+     'Bloquer 2 plages horaires dans ton agenda pour du travail concentré.',
+     'micro', 5, 5, 3, 'Organisation'),
+    ('Préparer l''ordre du jour du point hebdo',
+     'Lister les sujets à aborder, prioriser et partager l''ODJ avant la réunion.',
+     'faible', 15, 15, 7, 'Réunion'),
+    ('Relancer 3 prospects par email',
+     'Rédiger et envoyer 3 emails de relance personnalisés à des prospects identifiés.',
+     'faible', 20, 15, 7, 'Commercial'),
+    ('Mettre à jour le tableau de suivi des KPI',
+     'Renseigner les indicateurs clés de la semaine dans le tableau de bord.',
+     'moyenne', 25, 30, 15, 'Pilotage'),
+    ('Analyser les dépenses du mois et identifier 2 économies',
+     'Passer en revue les dépenses du mois, repérer les postes à optimiser et proposer 2 économies.',
+     'moyenne', 30, 30, 15, 'Finance'),
+    ('Rédiger un brouillon de post LinkedIn (thème : productivité)',
+     'Écrire un premier jet de post LinkedIn — accroche, contenu, call-to-action.',
+     'moyenne', 35, 30, 15, 'Marketing'),
+    ('Revoir et organiser les fichiers du drive (dossier "Admin")',
+     'Trier, renommer et archiver les fichiers du dossier Admin dans Google Drive.',
+     'haute', 60, 60, 30, 'Organisation');
   `
 ]

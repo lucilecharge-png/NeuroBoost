@@ -109,7 +109,8 @@ export default function TimerScreen(): JSX.Element {
 
   const dureeActive = dureeLibre ? Math.max(1, parseInt(dureeLibre) || 1) : dureeMin
   const totalSec = dureeActive * 60
-  const pct = phase === 'config' ? 0 : Math.max(0, 1 - remaining / totalSec)
+  const isOvertime = remaining < 0
+  const pct = phase === 'config' ? 0 : isOvertime ? 1 : Math.max(0, 1 - remaining / totalSec)
 
   useEffect(() => {
     window.api.listRecompenses().then(r => setRecompenses(r.filter(x => !x.utilisee)))
@@ -119,14 +120,17 @@ export default function TimerScreen(): JSX.Element {
     if (phase === 'running') {
       intervalRef.current = setInterval(() => {
         setRemaining(r => {
-          if (r <= 1) {
-            clearInterval(intervalRef.current!)
-            setPhase('done')
+          const next = r - 1
+          // Passage à zéro : son + panneau récompenses
+          if (r === 1) {
             SONS.find(s => s.id === sonId)?.play()
             setShowRecoPanel(true)
-            return 0
           }
-          return r - 1
+          // Son répété toutes les 60s en temps négatif
+          if (next < 0 && next % 60 === 0) {
+            SONS.find(s => s.id === sonId)?.play()
+          }
+          return next
         })
       }, 1000)
     } else {
@@ -187,7 +191,7 @@ export default function TimerScreen(): JSX.Element {
             <circle
               cx="130" cy="130" r={radius}
               fill="none"
-              stroke="url(#tg)"
+              stroke={isOvertime ? 'var(--danger)' : 'url(#tg)'}
               strokeWidth="10"
               strokeLinecap="round"
               strokeDasharray={circ}
@@ -211,14 +215,19 @@ export default function TimerScreen(): JSX.Element {
               fontWeight: 900,
               fontVariantNumeric: 'tabular-nums',
               letterSpacing: -3,
-              color: phase === 'done' ? 'var(--green-glow)' : 'var(--text)',
+              color: isOvertime ? 'var(--danger)' : 'var(--text)',
               lineHeight: 1,
               transition: 'color 400ms'
             }}>
-              {phase === 'config' ? fmtTime(dureeActive * 60) : fmtTime(remaining)}
+              {phase === 'config'
+                ? fmtTime(dureeActive * 60)
+                : isOvertime
+                  ? `-${fmtTime(Math.abs(remaining))}`
+                  : fmtTime(remaining)}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+            <div style={{ fontSize: 11, color: isOvertime ? 'var(--danger)' : 'var(--text-muted)', fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase' }}>
               {phase === 'config' ? `${dureeActive} min` :
+               isOvertime        ? 'dépassé' :
                phase === 'running' ? 'en cours' :
                phase === 'paused'  ? '⏸ pause' :
                                      '✓ terminé'}
@@ -286,19 +295,34 @@ export default function TimerScreen(): JSX.Element {
           </div>
         )}
 
-        {/* ── Contrôles running/paused/done ── */}
+        {/* ── Contrôles running/paused ── */}
         {phase !== 'config' && (
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            {phase !== 'done' && (
-              <button className="btn-primary"
-                style={{ minWidth: 140, padding: '12px 24px', fontSize: 15, fontWeight: 800 }}
-                onClick={togglePause}>
-                {phase === 'running' ? '⏸ Pause' : '▶ Reprendre'}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            {/* Bouton STOP rouge bien visible en dépassement */}
+            {isOvertime && (
+              <button onClick={reset} style={{
+                padding: '14px 40px', borderRadius: 'var(--radius)',
+                background: 'var(--danger)', color: '#fff',
+                fontSize: 16, fontWeight: 900, letterSpacing: .5,
+                border: 'none', cursor: 'pointer',
+                boxShadow: '0 0 28px rgba(239,68,68,.5)',
+                animation: 'levelup-pulse 1.5s ease-in-out infinite',
+              }}>
+                ■ Arrêter le timer
               </button>
             )}
-            <button className="btn-ghost" onClick={reset}>
-              ↩ Recommencer
-            </button>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              {!isOvertime && (
+                <button className="btn-primary"
+                  style={{ minWidth: 140, padding: '12px 24px', fontSize: 15, fontWeight: 800 }}
+                  onClick={togglePause}>
+                  {phase === 'running' ? '⏸ Pause' : '▶ Reprendre'}
+                </button>
+              )}
+              <button className="btn-ghost" onClick={reset}>
+                ↩ Recommencer
+              </button>
+            </div>
           </div>
         )}
       </div>
