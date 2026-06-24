@@ -1,0 +1,163 @@
+export const MIGRATIONS: string[] = [
+  // v1 — schéma complet NeuroBoost
+  `
+  -- Profil du joueur (singleton, id = 1)
+  CREATE TABLE profil (
+    id                   INTEGER PRIMARY KEY DEFAULT 1,
+    pseudo               TEXT NOT NULL DEFAULT 'Héros',
+    niveau               INTEGER NOT NULL DEFAULT 1,
+    xp                   INTEGER NOT NULL DEFAULT 0,
+    xp_prochain_niveau   INTEGER NOT NULL DEFAULT 100,
+    neurocoins           INTEGER NOT NULL DEFAULT 0,
+    streak_jours         INTEGER NOT NULL DEFAULT 0,
+    derniere_connexion   TEXT,
+    avatar_emoji         TEXT NOT NULL DEFAULT '🧠',
+    total_taches_terminees INTEGER NOT NULL DEFAULT 0
+  );
+  INSERT INTO profil (id) VALUES (1);
+
+  -- Tâches / Quêtes
+  CREATE TABLE taches (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    titre            TEXT NOT NULL,
+    description      TEXT,
+    niveau_energie   TEXT NOT NULL DEFAULT 'faible'
+                     CHECK (niveau_energie IN ('micro', 'faible', 'moyenne', 'haute')),
+    duree_estimee_min INTEGER NOT NULL DEFAULT 5,
+    xp_recompense    INTEGER NOT NULL DEFAULT 15,
+    coins_recompense INTEGER NOT NULL DEFAULT 7,
+    statut           TEXT NOT NULL DEFAULT 'active'
+                     CHECK (statut IN ('active', 'en_cours', 'terminee', 'ignoree')),
+    categorie        TEXT,
+    est_mission_jour INTEGER NOT NULL DEFAULT 0,
+    completee_le     TEXT,
+    cree_le          TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+  );
+  CREATE INDEX idx_taches_statut ON taches(statut);
+  CREATE INDEX idx_taches_mission ON taches(est_mission_jour);
+
+  -- Sessions Focus
+  CREATE TABLE sessions_focus (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    tache_id         INTEGER REFERENCES taches(id),
+    duree_prevue_min INTEGER NOT NULL,
+    duree_reelle_min INTEGER,
+    completee        INTEGER NOT NULL DEFAULT 0,
+    debut_le         TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    fin_le           TEXT
+  );
+
+  -- Achievements (seedés)
+  CREATE TABLE achievements (
+    id          TEXT PRIMARY KEY,
+    titre       TEXT NOT NULL,
+    description TEXT NOT NULL,
+    icone       TEXT NOT NULL,
+    xp_bonus    INTEGER NOT NULL DEFAULT 0,
+    debloque_le TEXT
+  );
+
+  INSERT INTO achievements (id, titre, description, icone, xp_bonus) VALUES
+    ('premier_pas',   'Allumage',              'La première tâche. La plus difficile. Toujours. Bravo.', '🔑', 50),
+    ('momentum',      'État de Flow',          'Ton cerveau TDAH en hyperfocus : 3 tâches en une seule journée.', '⚡', 100),
+    ('micro_hero',    'Petit Format, Grand Impact', '10 micro-tâches. La preuve que le démarrage bat la perfection.', '🎯', 75),
+    ('chrysalide',    'Protocole 2 Minutes',   '5 fois tu as choisi de commencer malgré l''inertie. C''est le vrai skill.', '🦋', 50),
+    ('semaine_feu',   'Signal Stable',         '7 jours consécutifs. Pas parfaits — constants. C''est ce qui recâble un cerveau.', '📡', 200),
+    ('debloqueur',    'Hack d''Inertie',       'Tu as bloqué. Tu as recommencé quand même. La compétence la plus rare.', '🔓', 100),
+    ('chasseur',      'Rafale Neurale',        '3 missions en un seul jour. Le cerveau TDAH peut tout — par sprints.', '🌊', 150),
+    ('niveau_5',      'Synapse+',              'Niveau 5. Chaque tâche complétée renforce tes connexions neurales.', '🧬', 100),
+    ('collecteur',    'Banque Neuro',          '100 NeuroCoins accumulés. Chaque micro-effort a laissé une trace.', '💎', 50),
+    ('inventeur',     'Vide-Cerveau Pro',      '10 captures. Tu externalises enfin ce que ta tête portait seule.', '🗂️', 75),
+    ('niveau_10',     'Recâblage',             'Niveau 10. Le TDAH peut être une force. Le tien le prouve maintenant.', '🧠', 300),
+    ('marathon',      'Hyperfocus',            '30 min de focus continu. Tu as transformé ton TDAH en superpower.', '🔬', 150),
+    ('semaine_feu_2', 'Mise en Orbite',        '30 jours. Tu n''essaies plus. Tu es devenu quelqu''un qui le fait.', '🛸', 500);
+
+  -- Énergie quotidienne
+  CREATE TABLE energie_jour (
+    date_entree   TEXT PRIMARY KEY,
+    niveau        INTEGER NOT NULL CHECK (niveau BETWEEN 1 AND 5)
+  );
+
+  -- Captures rapides
+  CREATE TABLE captures (
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    texte                TEXT NOT NULL,
+    transformee_en_tache INTEGER NOT NULL DEFAULT 0,
+    tache_id             INTEGER REFERENCES taches(id),
+    cree_le              TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+  );
+
+  -- Récompenses personnalisées
+  CREATE TABLE recompenses (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    titre       TEXT NOT NULL,
+    cout_coins  INTEGER NOT NULL,
+    icone       TEXT NOT NULL DEFAULT '🎁',
+    utilisee    INTEGER NOT NULL DEFAULT 0
+  );
+
+  -- Récompenses exemples
+  INSERT INTO recompenses (titre, cout_coins, icone) VALUES
+    ('5 min de doomscrolling assumé', 10, '📲'),
+    ('Pause étirement — juste s''allonger 5 min', 10, '🛋️'),
+    ('Un café ou thé préparé lentement', 15, '☕'),
+    ('Écouter une chanson en pleine conscience', 15, '🎧'),
+    ('Regarder une vidéo YouTube sans timer', 20, '▶️'),
+    ('15 min de réseaux sociaux sans culpabilité', 20, '📱'),
+    ('Pause snack — ce que tu veux', 20, '🍫'),
+    ('Appel ou message à quelqu''un qui te manque', 25, '💬'),
+    ('30 min de jeu vidéo', 30, '🎮'),
+    ('Sieste ou repos les yeux fermés — 20 min', 30, '😴'),
+    ('Bain ou douche longue sans se presser', 35, '🛁'),
+    ('Épisode de série', 50, '🎬'),
+    ('Commande un repas que tu aimes', 60, '🍕'),
+    ('Après-midi sans obligation', 80, '🌅'),
+    ('Sortie ou activité plaisir de ton choix', 100, '🎉'),
+    ('Un achat plaisir — budget à toi de fixer', 150, '🛍️');
+  `,
+
+  // v2 — Coaching (10 lois + bilan de vie)
+  `
+  ALTER TABLE taches ADD COLUMN est_pivot INTEGER NOT NULL DEFAULT 0;
+
+  CREATE TABLE affirmations (
+    date_entree TEXT PRIMARY KEY,
+    texte       TEXT NOT NULL
+  );
+
+  CREATE TABLE victoires (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    date_entree TEXT NOT NULL,
+    texte       TEXT NOT NULL
+  );
+
+  CREATE TABLE matrice_controle (
+    id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    texte TEXT NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('controle', 'non_controle'))
+  );
+
+  CREATE TABLE sandbox_reves (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    texte           TEXT NOT NULL,
+    action_extraite TEXT,
+    tache_id        INTEGER REFERENCES taches(id)
+  );
+
+  CREATE TABLE capsules_temps (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    message        TEXT NOT NULL,
+    date_ouverture TEXT NOT NULL,
+    ouvert         INTEGER NOT NULL DEFAULT 0,
+    cree_le        TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  );
+
+  CREATE TABLE bilan_reponses (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    question_id INTEGER NOT NULL,
+    reponse     TEXT NOT NULL,
+    date_entree TEXT NOT NULL,
+    UNIQUE(question_id, date_entree)
+  );
+  `
+]

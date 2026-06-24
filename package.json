@@ -1,0 +1,35 @@
+{
+  "name": "neuroboost",
+  "productName": "NeuroBoost",
+  "version": "0.1.0",
+  "description": "App gamifiée pour cerveaux TDAH — vaincre l'inertie une mission à la fois",
+  "main": "./out/main/index.js",
+  "author": "",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "npm run typecheck && electron-vite build",
+    "build:win": "npm run build && electron-builder --win",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json --composite false && tsc --noEmit -p tsconfig.web.json --composite false",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "@electron-toolkit/utils": "^4.0.0",
+    "better-sqlite3": "^12.10.0"
+  },
+  "devDependencies": {
+    "@electron-toolkit/tsconfig": "^2.0.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.1.1",
+    "electron": "^39.8.10",
+    "electron-builder": "^26.0.0",
+    "electron-vite": "^5.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.0.0"
+  }
+}

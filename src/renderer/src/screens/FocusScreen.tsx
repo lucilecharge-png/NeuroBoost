@@ -1,0 +1,222 @@
+import { useState, useEffect, useRef } from 'react'
+import type { TacheDTO } from '../../../shared/types'
+
+interface Props {
+  tache: TacheDTO
+  onTerminer: (dureeReelleMin: number) => Promise<void>
+  onAbandonner: () => void
+}
+
+type Phase = 'choix-duree' | 'en-cours' | 'bloque' | 'fini'
+
+const DUREES = [
+  { label: '2 min', subtitle: 'Mode chrysalide 🦋', min: 2 },
+  { label: '5 min', subtitle: 'Démarrage doux', min: 5 },
+  { label: '15 min', subtitle: 'Session courte', min: 15 },
+  { label: '25 min', subtitle: 'Pomodoro', min: 25 }
+]
+
+function fmtTime(s: number): string {
+  const m = Math.floor(s / 60)
+  const sec = s % 60
+  return `${m}:${sec.toString().padStart(2, '0')}`
+}
+
+const MICRO_STEPS = [
+  "Ouvre juste le fichier / l'application",
+  'Lis les 3 premières lignes',
+  'Pose un seul objet sur ta table',
+  'Écris le titre de la tâche quelque part',
+  'Mets ton téléphone hors de portée'
+]
+
+export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props): JSX.Element {
+  const [phase, setPhase] = useState<Phase>('choix-duree')
+  const [dureePrevue, setDureePrevue] = useState(5)
+  const [remaining, setRemaining] = useState(0)
+  const [sessionId, setSessionId] = useState<number | null>(null)
+  const [debutMs, setDebutMs] = useState(0)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [microStep] = useState(() => MICRO_STEPS[Math.floor(Math.random() * MICRO_STEPS.length)])
+
+  function demarrer(min: number) {
+    setDureePrevue(min)
+    setRemaining(min * 60)
+    setPhase('en-cours')
+    setDebutMs(Date.now())
+    window.api.demarrerSession(tache.id, min).then((s) => setSessionId(s.id))
+  }
+
+  useEffect(() => {
+    if (phase !== 'en-cours') return
+    intervalRef.current = setInterval(() => {
+      setRemaining((r) => {
+        if (r <= 1) {
+          clearInterval(intervalRef.current!)
+          setPhase('fini')
+          return 0
+        }
+        return r - 1
+      })
+    }, 1000)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [phase])
+
+  async function terminer() {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    const dureeReelle = Math.round((Date.now() - debutMs) / 60000)
+    if (sessionId) await window.api.terminerSession(sessionId, true, Math.max(1, dureeReelle))
+    await onTerminer(Math.max(1, dureeReelle))
+  }
+
+  async function abandonner() {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    if (sessionId && phase === 'en-cours') {
+      const dureeReelle = Math.round((Date.now() - debutMs) / 60000)
+      await window.api.terminerSession(sessionId, false, Math.max(1, dureeReelle))
+    }
+    onAbandonner()
+  }
+
+  // ─── Choix de durée ───────────────────────────────────────────────────────
+  if (phase === 'choix-duree') {
+    return (
+      <div className="focus-overlay">
+        <button className="btn-ghost" style={{ position: 'absolute', top: 20, left: 20, fontSize: 13 }} onClick={onAbandonner}>
+          ← Retour
+        </button>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>⏱</div>
+          <div className="focus-titre">{tache.titre}</div>
+          {tache.description && <div className="text-muted" style={{ marginTop: 6 }}>{tache.description}</div>}
+        </div>
+        <div style={{ width: '100%', maxWidth: 440 }}>
+          <div style={{ fontWeight: 700, textAlign: 'center', marginBottom: 14, color: 'var(--text-muted)' }}>
+            Pour combien de temps tu t'engages ?
+          </div>
+          <div className="grid-2" style={{ gap: 12 }}>
+            {DUREES.map((d) => (
+              <button
+                key={d.min}
+                onClick={() => demarrer(d.min)}
+                style={{
+                  padding: '18px 12px',
+                  borderRadius: 'var(--radius-lg)',
+                  background: d.min === 2 ? 'linear-gradient(135deg, var(--accent), var(--green))' : 'var(--bg-card)',
+                  border: `2px solid ${d.min === 2 ? 'transparent' : 'var(--border)'}`,
+                  color: 'var(--text)',
+                  cursor: 'pointer',
+                  transition: 'all 150ms',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 4,
+                  boxShadow: d.min === 2 ? 'var(--shadow-lg)' : 'none'
+                }}
+              >
+                <span style={{ fontSize: 22, fontWeight: 900 }}>{d.label}</span>
+                <span style={{ fontSize: 11, color: d.min === 2 ? 'rgba(255,255,255,.8)' : 'var(--text-muted)' }}>{d.subtitle}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ textAlign: 'center', maxWidth: 380 }}>
+          <div style={{ background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 'var(--radius)', padding: '12px 16px' }}>
+            <div style={{ fontSize: 13, color: 'var(--green)', fontWeight: 700, marginBottom: 4 }}>💡 Pour commencer facilement :</div>
+            <div style={{ fontSize: 13, color: 'var(--text)' }}>{microStep}</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ─── Timer circulaire ──────────────────────────────────────────────────────
+  if (phase === 'en-cours' || phase === 'bloque') {
+    const total = dureePrevue * 60
+    const pct = remaining / total
+    const r = 88
+    const circ = 2 * Math.PI * r
+    const dash = circ * pct
+
+    return (
+      <div className="focus-overlay">
+        <div className="focus-titre" style={{ maxWidth: 560 }}>{tache.titre}</div>
+
+        <div className="focus-timer-wrap">
+          <svg width="200" height="200" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r={r} fill="none" stroke="var(--border)" strokeWidth="10" />
+            <circle
+              cx="100" cy="100" r={r}
+              fill="none"
+              stroke="url(#timerGrad)"
+              strokeWidth="10"
+              strokeLinecap="round"
+              strokeDasharray={`${dash} ${circ}`}
+              style={{ transition: 'stroke-dasharray 1s linear' }}
+            />
+            <defs>
+              <linearGradient id="timerGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="var(--accent)" />
+                <stop offset="100%" stopColor="var(--green)" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div className="focus-timer-text">
+            <div className="focus-timer-time">{fmtTime(remaining)}</div>
+            <div className="text-muted" style={{ fontSize: 12 }}>{dureePrevue} min</div>
+          </div>
+        </div>
+
+        {phase === 'bloque' ? (
+          <div style={{ textAlign: 'center', maxWidth: 400 }}>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 16, color: 'var(--gold)' }}>
+              💬 C'est normal de bloquer. Quelle est la TOUTE PREMIÈRE chose à faire ?
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 20 }}>
+              Même si ça prend 30 secondes. Un seul geste.
+            </div>
+            <button className="btn-launch" onClick={() => setPhase('en-cours')}>
+              ▶ Je reprends
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 380 }}>
+            <button className="btn-launch" style={{ fontSize: 18, padding: '16px 24px' }} onClick={terminer}>
+              🎉 C'EST FAIT !
+            </button>
+            <div className="row" style={{ gap: 10 }}>
+              <button className="btn-ghost" style={{ flex: 1 }} onClick={() => setPhase('bloque')}>
+                😵 Je bloque
+              </button>
+              <button className="btn-ghost" style={{ flex: 1 }} onClick={abandonner}>
+                ✕ Abandonner
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ─── Timer terminé ─────────────────────────────────────────────────────────
+  return (
+    <div className="focus-overlay">
+      <div style={{ fontSize: 80, marginBottom: 8 }}>⏰</div>
+      <div style={{ fontSize: 26, fontWeight: 900, textAlign: 'center' }}>Temps écoulé !</div>
+      <div className="text-muted" style={{ textAlign: 'center', maxWidth: 360 }}>
+        Tu as tenu {dureePrevue} minutes. Est-ce que la tâche est terminée ?
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 380 }}>
+        <button className="btn-launch" style={{ fontSize: 18 }} onClick={terminer}>
+          🎉 OUI, c'est fait !
+        </button>
+        <button className="btn-ghost" onClick={() => { setRemaining(5 * 60); setPhase('en-cours') }}>
+          ⏱ +5 min de plus
+        </button>
+        <button className="btn-ghost" onClick={abandonner}>
+          ← Retour sans compléter
+        </button>
+      </div>
+    </div>
+  )
+}
