@@ -187,5 +187,26 @@ export const MIGRATIONS: string[] = [
     ('Revoir et organiser les fichiers du drive (dossier "Admin")',
      'Trier, renommer et archiver les fichiers du dossier Admin dans Google Drive.',
      'haute', 60, 60, 30, 'Organisation');
+  `,
+
+  // v4 — Récompenses TDAH jeune adulte / adulte
+  `
+  INSERT INTO recompenses (titre, cout_coins, icone) VALUES
+    ('Aller prendre l''air 10 min sans téléphone', 8, '🌿'),
+    ('Danser sur 3 chansons — sans se juger', 10, '🕺'),
+    ('Doodler librement — zéro objectif', 10, '✏️'),
+    ('Faire une liste de tout ce qu''on rêve de faire', 10, '📋'),
+    ('Scroll TikTok / Reels assumé — 15 min chrono', 15, '📲'),
+    ('Moment cocooning : plaid + boisson chaude', 15, '🧸'),
+    ('Écouter un épisode de podcast', 20, '🎙️'),
+    ('Session jeu mobile sans culpabilité — 20 min', 20, '📱'),
+    ('Commander un café ou une douceur en terrasse', 25, '☕'),
+    ('Faire un tour à pied sans destination', 25, '🚶'),
+    ('Appeler quelqu''un qui te fait du bien', 25, '📞'),
+    ('Après-midi créativité libre — dessin, musique, écriture', 40, '🎨'),
+    ('Séance ciné ou série en mode sieste-canapé', 50, '🍿'),
+    ('Sortie spontanée — café, parc, musée, brocante', 60, '🗺️'),
+    ('Une nuit sans alarme — dormir jusqu''au bout', 80, '🌙'),
+    ('Achat plaisir coup de cœur — vêtement, livre, gadget', 120, '🛍️');
   `
 ]
