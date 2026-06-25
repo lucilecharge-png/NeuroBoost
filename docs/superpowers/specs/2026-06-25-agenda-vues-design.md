@@ -46,7 +46,9 @@ liste d'occurrences aplaties :
    « +N » en cas de débordement.
 3. **Multi-mois** (`nbMois` = 3 / 6 / 9 / 12) → Trimestre · Semestre · 9 mois ·
    Année. Grille de mini-mois ; « par trimestre / semestre » = bandeaux de
-   regroupement (T1/T2… ou S1/S2). Clic sur un jour → zoom vers le moteur Jour.
+   regroupement (T1/T2… ou S1/S2). Clic sur un jour → modal de **création**
+   (date pré-remplie) ; **double-clic** (ou loupe au survol) → zoom vers le
+   moteur Jour à cette date.
 
 ## Architecture / fichiers
 
@@ -150,8 +152,8 @@ toute ligne `evenement` dont l'`id` figure dans
 déplacer (vertical = heure, horizontal = jour) ; resize par le bord bas = durée.
 **Grille de mois** : clic jour → modal (journée) ; clic pastille → édition ;
 drag pastille entre jours = changer la date (heure conservée).
-**Multi-mois** : clic jour → zoom vers le moteur Jour (navigation, pas de
-création).
+**Multi-mois** : clic jour → modal de création (date pré-remplie) ;
+double-clic (ou loupe au survol) → zoom vers le moteur Jour.
 
 Drag/édition sur une occurrence récurrente → on demande le mode d'application
 (occurrence / suivantes / série) avant d'appliquer.
@@ -163,7 +165,9 @@ d'un récurrent : sélecteur du mode d'application.
 
 ## Rappels / notifications (premier jet)
 
-- `rappel_min` sur l'événement ; choix UI : « 10 min », « 1 h », « la veille »…
+- `rappel_min` sur l'événement ; presets UI : « 5 min », « 10 min », « 30 min »,
+  « 1 h », « la veille » **+ horaire personnalisé** (champ libre en minutes — la
+  modal le convertit en `rappel_min`). `NULL` = pas de rappel.
 - `agenda.ts` expose `listProchainsRappels(db, horizonJours)` → occurrences à
   venir avec rappel, déjà aplaties.
 - `api.ts` les planifie via le **même** `setTimeout` + `Notification` navigateur
