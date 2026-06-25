@@ -113,6 +113,9 @@ export function exportDb(): Uint8Array {
 
 // Remplace la base courante par le contenu d'un fichier importé.
 // Sûreté : on ne touche dbInstance qu'après validation réussie du fichier.
+// IMPORTANT : après un import réussi, l'appelant DOIT recharger la page
+// (window.location.reload). window.api (api.ts) garde une référence vers
+// l'ancien wrapper ; seul un rechargement réinitialise tout proprement.
 export async function importDb(bytes: Uint8Array): Promise<void> {
   if (!SQL || !dbInstance) throw new Error('Base non initialisée')
   const next = new SQL.Database(bytes)
