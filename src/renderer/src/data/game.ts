@@ -268,10 +268,12 @@ export function terminerTache(db: Db, id: number, _dureeReelleMin?: number): Com
   // (effet « projet bouclé ») et on cumule sa récompense.
   const parentId = tache.parent_id as number | null
   if (parentId) {
+    // Garde : ne pas re-terminer un parent déjà terminé (sinon double comptage XP).
+    const parent = db.prepare('SELECT statut FROM taches WHERE id = ?').get(parentId) as { statut: string } | undefined
     const reste = db.prepare(
       "SELECT COUNT(*) as n FROM taches WHERE parent_id = ? AND statut IN ('active','en_cours')"
     ).get(parentId) as { n: number }
-    if (reste.n === 0) {
+    if (parent && parent.statut !== 'terminee' && reste.n === 0) {
       const parentRes = terminerTache(db, parentId)
       return {
         profil: parentRes.profil,

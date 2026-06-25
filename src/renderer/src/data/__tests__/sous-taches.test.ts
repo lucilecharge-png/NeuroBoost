@@ -26,9 +26,11 @@ describe('sous-tâches — parentId & listing', () => {
       { titre: 'Prévoir le gâteau' }
     ])
 
-    G.terminerTache(db, enfants[0].id)
+    const res1 = G.terminerTache(db, enfants[0].id)
     let p = db.prepare('SELECT statut FROM taches WHERE id = ?').get(parent.id) as { statut: string }
     expect(p.statut).toBe('active')
+    // Pas de bonus parent tant que toutes les sous-tâches ne sont pas finies
+    expect(res1.xpGagne).toBe(enfants[0].xpRecompense)
 
     const res = G.terminerTache(db, enfants[1].id)
     p = db.prepare('SELECT statut FROM taches WHERE id = ?').get(parent.id) as { statut: string }
