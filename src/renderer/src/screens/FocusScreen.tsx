@@ -89,7 +89,7 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
         .filter((s) => s.completee && s.dureeReelleMin !== null)
         .reduce((sum, s) => sum + (s.dureeReelleMin ?? 0), 0)
       setTotalFocusMin(total)
-    })
+    }).catch(console.error)
   }, [])
 
   async function terminer() {
@@ -228,7 +228,7 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
               <button
                 className="btn-ghost"
                 style={{ flex: 1, fontSize: 13 }}
-                onClick={() => onAbandonner()}
+                onClick={onAbandonner}
               >
                 ← M'arrêter ici
               </button>
