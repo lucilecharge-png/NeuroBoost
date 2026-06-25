@@ -114,7 +114,7 @@ export function exportDb(): Uint8Array {
 // Remplace la base courante par le contenu d'un fichier importé.
 // Sûreté : on ne touche dbInstance qu'après validation réussie du fichier.
 export async function importDb(bytes: Uint8Array): Promise<void> {
-  if (!SQL) throw new Error('Base non initialisée')
+  if (!SQL || !dbInstance) throw new Error('Base non initialisée')
   const next = new SQL.Database(bytes)
   // sql.js ne valide pas les octets à la construction (lecture paresseuse de
   // l'en-tête SQLite). On force une lecture du schéma : ceci lève si le fichier
@@ -124,9 +124,9 @@ export async function importDb(bytes: Uint8Array): Promise<void> {
   // vide, fabriquant une fausse base "valide") et AVANT de remplacer dbInstance.
   try {
     next.exec('SELECT 1 FROM profil LIMIT 1')
-  } catch {
+  } catch (err) {
     next.close()
-    throw new Error('Fichier de sauvegarde invalide ou illisible')
+    throw new Error('Fichier de sauvegarde invalide ou illisible', { cause: err })
   }
   next.run('PRAGMA foreign_keys = ON')
   runMigrations(next) // met à niveau un backup d'une version antérieure
