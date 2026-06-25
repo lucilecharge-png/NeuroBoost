@@ -282,5 +282,11 @@ export const MIGRATIONS: string[] = [
     override_id     INTEGER REFERENCES evenement(id) ON DELETE CASCADE
   );
   CREATE INDEX idx_exception_evenement ON evenement_exception(evenement_id);
+  `,
+
+  // v9 — Sous-tâches : relation parent/enfant
+  `
+  ALTER TABLE taches ADD COLUMN parent_id INTEGER REFERENCES taches(id) ON DELETE CASCADE;
+  CREATE INDEX idx_taches_parent ON taches(parent_id);
   `
 ]
