@@ -22,6 +22,8 @@ function fmtTime(s: number): string {
   return `${m}:${sec.toString().padStart(2, '0')}`
 }
 
+const CORPO_PAUSE_THRESHOLD_S = 25 * 60
+
 const MICRO_STEPS = [
   "Ouvre juste le fichier / l'application",
   'Lis les 3 premières lignes',
@@ -40,18 +42,23 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
   const [microStep] = useState(() => MICRO_STEPS[Math.floor(Math.random() * MICRO_STEPS.length)])
   const [postItNote, setPostItNote] = useState('')
   const [phaseAvantPostIt, setPhaseAvantPostIt] = useState<Phase>('en-cours')
+  const [elapsedS, setElapsedS] = useState(0)
+  const corpoPauseTriggered = useRef(false)
 
   function demarrer(min: number) {
     setDureePrevue(min)
     setRemaining(min * 60)
     setPhase('en-cours')
     setDebutMs(Date.now())
+    setElapsedS(0)
+    corpoPauseTriggered.current = false
     window.api.demarrerSession(tache.id, min).then((s) => setSessionId(s.id))
   }
 
   useEffect(() => {
     if (phase !== 'en-cours') return
     intervalRef.current = setInterval(() => {
+      setElapsedS((e) => e + 1)
       setRemaining((r) => {
         if (r <= 1) {
           clearInterval(intervalRef.current!)
@@ -63,6 +70,16 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
     }, 1000)
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [phase])
+
+  useEffect(() => {
+    if (phase !== 'en-cours') return
+    if (dureePrevue < 25) return
+    if (elapsedS < CORPO_PAUSE_THRESHOLD_S) return
+    if (corpoPauseTriggered.current) return
+    corpoPauseTriggered.current = true
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    setPhase('pause-corpo')
+  }, [elapsedS, phase, dureePrevue])
 
   async function terminer() {
     if (intervalRef.current) clearInterval(intervalRef.current)
@@ -93,6 +110,12 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
     await executerAbandon()
   }
 
+  function reprendreFocus() {
+    corpoPauseTriggered.current = false
+    setElapsedS(0)
+    setPhase('en-cours')
+  }
+
   async function abandonner() {
     if (phase === 'en-cours' || phase === 'fini') {
       allerAuPostIt()
@@ -104,6 +127,38 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
       }
       onAbandonner()
     }
+  }
+
+  // ─── Pause Corpo ──────────────────────────────────────────────────────────
+  if (phase === 'pause-corpo') {
+    return (
+      <div className="focus-overlay">
+        <div style={{ fontSize: 64, marginBottom: 8 }}>🧘</div>
+        <div className="focus-titre">Pause Corpo !</div>
+        <div className="text-muted" style={{ textAlign: 'center', maxWidth: 380, marginBottom: 24 }}>
+          Tu focus depuis 25 min — prends 2 minutes pour toi. Le timer t'attend.
+        </div>
+        <div style={{ width: '100%', maxWidth: 380, marginBottom: 24 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[
+              '🦵 Lève-toi et étire les jambes',
+              '💧 Bois un verre d\'eau',
+              '👀 Regarde au loin 20 secondes'
+            ].map((s, i) => (
+              <div
+                key={i}
+                style={{ padding: '14px 18px', background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 'var(--radius)', fontSize: 15 }}
+              >
+                {s}
+              </div>
+            ))}
+          </div>
+        </div>
+        <button className="btn-launch" style={{ fontSize: 17 }} onClick={reprendreFocus}>
+          ✓ Pause faite, je reprends
+        </button>
+      </div>
+    )
   }
 
   // ─── Post-it de transition ────────────────────────────────────────────────
