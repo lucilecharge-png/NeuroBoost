@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import type { TacheDTO, ProfilDTO, EnergieDTO, CompletionResult, NiveauEnergieJour } from '../../../shared/types'
 import Celebration from '../components/Celebration'
 import FocusScreen from './FocusScreen'
+import TemplatesModal from '../components/TemplatesModal'
 
 const ENERGIE_LABELS: Record<number, { emoji: string; label: string }> = {
   1: { emoji: '😴', label: 'À plat' },
@@ -30,6 +31,7 @@ export default function AccueilScreen(): JSX.Element {
   const [streakBonus, setStreakBonus] = useState(0)
   const [loading, setLoading] = useState(true)
   const [capture, setCapture] = useState('')
+  const [showTemplates, setShowTemplates] = useState(false)
 
   const charger = useCallback(async () => {
     const [cx, m, e] = await Promise.all([
@@ -61,6 +63,13 @@ export default function AccueilScreen(): JSX.Element {
   async function regenerer() {
     const m = await window.api.regenererMissions()
     setMissions(m)
+  }
+
+  async function appliquerTemplate(taches: string[]) {
+    for (const titre of taches) {
+      await window.api.createTache({ titre, niveauEnergie: 'faible' })
+    }
+    await regenerer()
   }
 
   async function ajouterCapture() {
@@ -140,9 +149,18 @@ export default function AccueilScreen(): JSX.Element {
       <div style={{ marginBottom: 20 }}>
         <div className="row-between" style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 900, fontSize: 18 }}>⚔️ Tes 3 missions du jour</div>
-          <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={regenerer}>
-            ↻ Changer
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={regenerer}>
+              ↻ Changer
+            </button>
+            <button
+              className="btn-ghost"
+              style={{ fontSize: 13 }}
+              onClick={() => setShowTemplates(true)}
+            >
+              🎲 Choisis pour moi
+            </button>
+          </div>
         </div>
 
         {missions.length === 0 ? (
@@ -201,6 +219,13 @@ export default function AccueilScreen(): JSX.Element {
         </div>
         <div className="text-muted" style={{ marginTop: 6 }}>Appuie sur Entrée. On s'occupera de ça plus tard.</div>
       </div>
+
+      {showTemplates && (
+        <TemplatesModal
+          onClose={() => setShowTemplates(false)}
+          onSelectTemplate={appliquerTemplate}
+        />
+      )}
     </div>
   )
 }
