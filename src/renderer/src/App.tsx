@@ -9,6 +9,7 @@ import TimerScreen from './screens/TimerScreen'
 import TunnelScreen from './screens/TunnelScreen'
 import RendezVousScreen from './screens/RendezVousScreen'
 import RituelEcran from './components/RituelEcran'
+import BackupModal from './components/BackupModal'
 import { getRituelConfig, phaseActuelle, rituelFaitAujourdhui, marquerRituelFait, type Phase } from './data/rituels'
 
 type Onglet = 'accueil' | 'quetes' | 'tunnel' | 'captures' | 'coaching' | 'timer' | 'rendezvous' | 'recompenses'
@@ -17,6 +18,7 @@ export default function App(): JSX.Element {
   const [onglet, setOnglet] = useState<Onglet>('accueil')
   const [profil, setProfil] = useState<ProfilDTO | null>(null)
   const [rituel, setRituel] = useState<Phase | null>(null)
+  const [backupOuvert, setBackupOuvert] = useState(false)
 
   useEffect(() => {
     window.api.getProfil().then(setProfil)
@@ -57,6 +59,7 @@ export default function App(): JSX.Element {
           onFermer={() => { marquerRituelFait(rituel); setRituel(null) }}
         />
       )}
+      {backupOuvert && <BackupModal onFermer={() => setBackupOuvert(false)} />}
 
       {/* ── Sidebar ── */}
       <nav className="sidebar">
@@ -105,6 +108,10 @@ export default function App(): JSX.Element {
         <button className="nav-item" onClick={ouvrirRituel}>
           <span className="nav-icon">🌙</span>
           Rituel
+        </button>
+        <button className="nav-item" onClick={() => setBackupOuvert(true)}>
+          <span className="nav-icon">💾</span>
+          Sauvegarde
         </button>
         {nav('recompenses', '🏆', 'Récompenses')}
       </nav>
