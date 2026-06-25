@@ -8,13 +8,15 @@ function xpPourNiveau(niveau: number): number {
   return niveau * 100
 }
 
+// Avatar « système solaire » : s'illumine et grandit au fil des niveaux,
+// de la nouvelle lune jusqu'au soleil.
 function avatarEmoji(niveau: number): string {
-  if (niveau >= 20) return '🦋'
+  if (niveau >= 20) return '☀️'
   if (niveau >= 15) return '🌟'
-  if (niveau >= 10) return '⚡'
-  if (niveau >= 6) return '🌳'
-  if (niveau >= 3) return '🌿'
-  return '🌱'
+  if (niveau >= 10) return '🪐'
+  if (niveau >= 6) return '🌕'
+  if (niveau >= 3) return '🌓'
+  return '🌑'
 }
 
 // ─── Profil ───────────────────────────────────────────────────────────────────

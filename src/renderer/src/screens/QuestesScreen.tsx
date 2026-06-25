@@ -6,7 +6,7 @@ import TacheTitreInput from '../components/TacheTitreInput'
 
 const NIVEAUX: { key: NiveauEnergie; label: string; desc: string; couleur: string }[] = [
   { key: 'micro', label: '⚡ Micro', desc: '< 5 min', couleur: '#10b981' },
-  { key: 'faible', label: '🌱 Légère', desc: '5-15 min', couleur: '#a855f7' },
+  { key: 'faible', label: '✨ Légère', desc: '5-15 min', couleur: '#a855f7' },
   { key: 'moyenne', label: '🔥 Moyenne', desc: '15-45 min', couleur: '#f59e0b' },
   { key: 'haute', label: '💪 Haute', desc: '45+ min', couleur: '#ef4444' }
 ]
