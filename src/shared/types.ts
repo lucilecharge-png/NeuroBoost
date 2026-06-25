@@ -32,6 +32,7 @@ export interface TacheDTO {
   pourquoi: string | null
   completedLe: string | null
   creeLe: string
+  parentId: number | null
 }
 
 export interface TacheInput {
@@ -41,6 +42,12 @@ export interface TacheInput {
   dureeEstimeeMin?: number
   categorie?: string | null
   pourquoi?: string | null
+}
+
+export interface SousTacheProposee {
+  titre: string
+  dureeEstimeeMin?: number
+  niveauEnergie?: NiveauEnergie
 }
 
 // ─── Sessions Focus ───────────────────────────────────────────────────────────
@@ -223,6 +230,13 @@ export interface NeuroBoostApi {
   terminerTache: (id: number, dureeReelleMin?: number) => Promise<CompletionResult>
   ignorerTache: (id: number) => Promise<void>
   regenererMissions: () => Promise<TacheDTO[]>
+
+  // Découpe en sous-tâches
+  decouperTache: (
+    input: { titre: string; description?: string | null; pourquoi?: string | null; categorie?: string | null },
+    nombre: number
+  ) => Promise<SousTacheProposee[]>
+  creerSousTaches: (parentId: number, sousTaches: TacheInput[]) => Promise<TacheDTO[]>
 
   // Focus
   demarrerSession: (tacheId: number | null, dureePrevueMin: number) => Promise<SessionFocusDTO>
