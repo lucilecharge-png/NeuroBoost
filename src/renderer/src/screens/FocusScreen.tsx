@@ -325,7 +325,7 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
         <button className="btn-launch" style={{ fontSize: 18 }} onClick={terminer}>
           🎉 OUI, c'est fait !
         </button>
-        <button className="btn-ghost" onClick={() => { setRemaining(5 * 60); setPhase('en-cours') }}>
+        <button className="btn-ghost" onClick={() => { setRemaining(5 * 60); setElapsedS(0); corpoPauseTriggered.current = false; setPhase('en-cours') }}>
           ⏱ +5 min de plus
         </button>
         <button className="btn-ghost" onClick={abandonner}>
