@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { serialiserRRULE, parserRRULE } from '../recurrence'
-import type { RecurrenceRule } from '../../../shared/types'
+import type { RecurrenceRule } from '../../../../shared/types'
 
 describe('serialiserRRULE', () => {
   it('quotidien simple', () => {

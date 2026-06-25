@@ -198,6 +198,7 @@ export interface OccurrenceDTO {
   description: string | null
   tacheId: number | null
   estRecurrent: boolean
+  recurrence: RecurrenceRule | null
   rappelMin: number | null
 }
 
