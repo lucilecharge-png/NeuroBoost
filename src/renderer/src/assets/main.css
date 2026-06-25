@@ -1,3 +1,8 @@
+@keyframes levelup-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(239,68,68,.4); }
+  50%       { box-shadow: 0 0 40px rgba(239,68,68,.8); }
+}
+
 /* ── Palette NeuroBoost — bleu/vert neural ──────────────────────────────────── */
 :root {
   --bg:           #030b14;

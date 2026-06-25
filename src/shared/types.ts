@@ -28,6 +28,8 @@ export interface TacheDTO {
   statut: StatutTache
   categorie: string | null
   estMissionJour: boolean
+  estPivot: boolean
+  pourquoi: string | null
   completedLe: string | null
   creeLe: string
 }
@@ -38,6 +40,7 @@ export interface TacheInput {
   niveauEnergie?: NiveauEnergie
   dureeEstimeeMin?: number
   categorie?: string | null
+  pourquoi?: string | null
 }
 
 // ─── Sessions Focus ───────────────────────────────────────────────────────────
@@ -102,6 +105,23 @@ export interface StatsDTO {
   streakActuel: number
 }
 
+// ─── Rendez-vous Fantômes ─────────────────────────────────────────────────────
+
+export interface RendezVousDTO {
+  id: number
+  titre: string
+  moment: string // 'YYYY-MM-DD HH:MM' en heure locale
+  notifie: boolean
+}
+
+// ─── Indice de régularité ─────────────────────────────────────────────────────
+
+export interface ConsistanceDTO {
+  jours7: boolean[] // 7 jours glissants, index 0 = il y a 6 jours … index 6 = aujourd'hui
+  actifs7: number
+  actifs30: number
+}
+
 // ─── Résultat de complétion ───────────────────────────────────────────────────
 
 export interface CompletionResult {
@@ -145,6 +165,15 @@ export interface NeuroBoostApi {
   getEnergieJour: () => Promise<EnergieDTO | null>
   setEnergieJour: (niveau: NiveauEnergieJour) => Promise<EnergieDTO>
 
+  // Mode Journée Sans (bare minimum du jour)
+  getJourneeSans: () => Promise<boolean>
+  setJourneeSans: (actif: boolean) => Promise<boolean>
+
+  // Rendez-vous Fantômes
+  listRendezVous: () => Promise<RendezVousDTO[]>
+  createRendezVous: (titre: string, moment: string) => Promise<RendezVousDTO>
+  cancelRendezVous: (id: number) => Promise<void>
+
   // Captures
   listCaptures: () => Promise<CaptureDTO[]>
   addCapture: (texte: string) => Promise<CaptureDTO>
@@ -159,6 +188,7 @@ export interface NeuroBoostApi {
 
   // Stats
   getStats: () => Promise<StatsDTO>
+  getConsistance: () => Promise<ConsistanceDTO>
 
   // Tâche pivot
   setPivot: (id: number, estPivot: boolean) => Promise<TacheDTO>
@@ -182,6 +212,10 @@ export interface NeuroBoostApi {
   ouvrirCapsule: (id: number) => Promise<CapsuleDTO>
   getBilanReponses: () => Promise<BilanReponseDTO[]>
   setBilanReponse: (questionId: number, reponse: string) => Promise<void>
+
+  // Revue hebdomadaire
+  getRevueHebdo: (semaine: string) => Promise<RevueHebdoDTO | null>
+  saveRevueHebdo: (semaine: string, reponses: RevueReponse[]) => Promise<{ revue: RevueHebdoDTO; xpGagne: number }>
 }
 
 // ─── Types coaching ───────────────────────────────────────────────────────────
@@ -191,3 +225,18 @@ export interface MatriceItemDTO { id: number; texte: string; type: 'controle' | 
 export interface ReveDTO { id: number; texte: string; actionExtraite: string | null; tacheId: number | null }
 export interface CapsuleDTO { id: number; message: string; dateOuverture: string; ouvert: boolean; creeLe: string }
 export interface BilanReponseDTO { questionId: number; reponse: string; dateEntree: string }
+
+// ─── Revue hebdomadaire ───────────────────────────────────────────────────────
+
+export interface RevueReponse {
+  questionId: number
+  reponse: string
+}
+
+export interface RevueHebdoDTO {
+  id: number
+  semaine: string
+  reponses: RevueReponse[]
+  xpAttribue: number
+  creeLe: string
+}

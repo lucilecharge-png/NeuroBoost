@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { TacheDTO, ProfilDTO, EnergieDTO, CompletionResult, NiveauEnergieJour } from '../../../shared/types'
+import type { TacheDTO, ProfilDTO, EnergieDTO, CompletionResult, NiveauEnergieJour, ConsistanceDTO } from '../../../shared/types'
 import Celebration from '../components/Celebration'
 import FocusScreen from './FocusScreen'
+import TemplatesModal from '../components/TemplatesModal'
+import RevueHebdoModal, { getISOWeek } from '../components/RevueHebdoModal'
+import ExcuseBusterModal from '../components/ExcuseBusterModal'
 
 const ENERGIE_LABELS: Record<number, { emoji: string; label: string }> = {
   1: { emoji: '😴', label: 'À plat' },
@@ -24,27 +27,72 @@ function salutation(): string {
 export default function AccueilScreen(): JSX.Element {
   const [profil, setProfil] = useState<ProfilDTO | null>(null)
   const [missions, setMissions] = useState<TacheDTO[]>([])
+  const [pivot, setPivot] = useState<TacheDTO | null>(null)
   const [energieJour, setEnergieJour] = useState<EnergieDTO | null>(null)
   const [celebration, setCelebration] = useState<CompletionResult | null>(null)
   const [focusTache, setFocusTache] = useState<TacheDTO | null>(null)
   const [streakBonus, setStreakBonus] = useState(0)
   const [loading, setLoading] = useState(true)
   const [capture, setCapture] = useState('')
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [showRevue, setShowRevue] = useState(false)
+  const [revueFaite, setRevueFaite] = useState(false)
+  const [excuseTache, setExcuseTache] = useState<TacheDTO | null>(null)
+  const [journeeSans, setJourneeSans] = useState(false)
+  const [miniTache, setMiniTache] = useState<TacheDTO | null>(null)
+  const [consistance, setConsistance] = useState<ConsistanceDTO | null>(null)
 
   const charger = useCallback(async () => {
-    const [cx, m, e] = await Promise.all([
+    const [cx, m, e, p, js, c] = await Promise.all([
       window.api.connexionJournaliere(),
       window.api.getMissionsJour(),
-      window.api.getEnergieJour()
+      window.api.getEnergieJour(),
+      window.api.getTachePivot(),
+      window.api.getJourneeSans(),
+      window.api.getConsistance()
     ])
     setProfil(cx.profil)
     if (cx.streakBonus > 0) setStreakBonus(cx.streakBonus)
     setMissions(m)
     setEnergieJour(e)
+    setPivot(p)
+    setJourneeSans(js)
+    setConsistance(c)
     setLoading(false)
   }, [])
 
+  // Choisit la micro-tâche "strict minimum" pour le mode Journée Sans :
+  // la plus petite tâche active disponible (énergie micro de préférence).
+  const chargerMiniTache = useCallback(async () => {
+    const micro = await window.api.listTaches({ statut: 'active', energie: 'micro' })
+    if (micro.length > 0) { setMiniTache(micro[0]); return }
+    const toutes = await window.api.listTaches({ statut: 'active' })
+    setMiniTache(toutes[0] ?? null)
+  }, [])
+
+  async function activerJourneeSans(actif: boolean) {
+    const js = await window.api.setJourneeSans(actif)
+    setJourneeSans(js)
+    if (js) await chargerMiniTache()
+  }
+
+  async function togglePivot(t: TacheDTO) {
+    await window.api.setPivot(t.id, !t.estPivot)
+    const [m, p] = await Promise.all([window.api.getMissionsJour(), window.api.getTachePivot()])
+    setMissions(m)
+    setPivot(p)
+  }
+
   useEffect(() => { charger() }, [charger])
+
+  useEffect(() => {
+    const semaine = getISOWeek(new Date())
+    window.api.getRevueHebdo(semaine).then((r) => setRevueFaite(!!r)).catch(console.error)
+  }, [])
+
+  useEffect(() => {
+    if (journeeSans && !miniTache) chargerMiniTache()
+  }, [journeeSans, miniTache, chargerMiniTache])
 
   async function setEnergie(n: NiveauEnergieJour) {
     const e = await window.api.setEnergieJour(n)
@@ -56,11 +104,19 @@ export default function AccueilScreen(): JSX.Element {
     setCelebration(res)
     setProfil(res.profil)
     setMissions((prev) => prev.filter((m) => m.id !== t.id))
+    if (t.estPivot) setPivot(null)
   }
 
   async function regenerer() {
     const m = await window.api.regenererMissions()
     setMissions(m)
+  }
+
+  async function appliquerTemplate(taches: string[]) {
+    for (const titre of taches) {
+      await window.api.createTache({ titre, niveauEnergie: 'faible' })
+    }
+    await regenerer()
   }
 
   async function ajouterCapture() {
@@ -86,6 +142,7 @@ export default function AccueilScreen(): JSX.Element {
           setCelebration(res)
           setProfil(res.profil)
           setMissions((prev) => prev.filter((m) => m.id !== focusTache.id))
+          if (focusTache.estPivot) setPivot(null)
           setFocusTache(null)
         }}
         onAbandonner={() => setFocusTache(null)}
@@ -110,7 +167,96 @@ export default function AccueilScreen(): JSX.Element {
         {profil && profil.streakJours > 1 && (
           <div className="streak-badge">🔥 {profil.streakJours} jours de suite</div>
         )}
+
+        {consistance && (
+          <div
+            style={{
+              marginTop: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '10px 14px',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)'
+            }}
+            title={`${consistance.actifs30} jours actifs sur les 30 derniers`}
+          >
+            <div style={{ display: 'flex', gap: 5 }}>
+              {consistance.jours7.map((actif, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    background: actif ? 'var(--green)' : 'var(--border)',
+                    boxShadow: actif ? '0 0 6px rgba(16,185,129,.5)' : 'none',
+                    border: i === 6 ? '2px solid var(--accent)' : 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              <strong style={{ color: 'var(--text)' }}>{consistance.actifs7}/7</strong> jours actifs · la régularité bat l'intensité
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* ── Tâche pivot (Boss Final) ── */}
+      {pivot ? (
+        <div
+          className="card-glow"
+          style={{
+            marginBottom: 20,
+            padding: '18px 20px',
+            background: 'linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.04))',
+            border: '2px solid var(--gold)',
+            borderRadius: 'var(--radius-lg)'
+          }}
+        >
+          <div className="row-between" style={{ marginBottom: 6 }}>
+            <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--gold)', letterSpacing: .5, textTransform: 'uppercase' }}>
+              👑 Ta tâche pivot
+            </div>
+            <button
+              className="btn-icon"
+              title="Retirer le statut pivot"
+              onClick={() => togglePivot(pivot)}
+            >
+              ✕
+            </button>
+          </div>
+          <div style={{ fontWeight: 900, fontSize: 20, marginBottom: 4 }}>{pivot.titre}</div>
+          {pivot.pourquoi ? (
+            <div style={{ fontSize: 13, marginBottom: 14, fontStyle: 'italic', color: 'var(--gold)' }}>
+              💛 « {pivot.pourquoi} »
+            </div>
+          ) : (
+            <div className="text-muted" style={{ fontSize: 13, marginBottom: 14 }}>
+              La SEULE chose qui change tout. Donne-lui au moins 15 minutes — le reste peut attendre.
+            </div>
+          )}
+          <button className="btn-launch" style={{ width: '100%' }} onClick={() => setFocusTache(pivot)}>
+            🚀 Attaquer le Boss Final
+          </button>
+        </div>
+      ) : (
+        <div
+          style={{
+            marginBottom: 20,
+            padding: '12px 16px',
+            border: '1px dashed var(--border)',
+            borderRadius: 'var(--radius)',
+            color: 'var(--text-muted)',
+            fontSize: 13
+          }}
+        >
+          👑 Aucune tâche pivot. Marque d'une étoile la SEULE chose qui changerait tout cette semaine.
+        </div>
+      )}
 
       {/* ── Énergie du moment ── */}
       <div className="card" style={{ marginBottom: 20 }}>
@@ -136,13 +282,91 @@ export default function AccueilScreen(): JSX.Element {
         )}
       </div>
 
+      {/* ── Mode Journée Sans (bare minimum) ── */}
+      {journeeSans ? (
+        <div
+          className="card"
+          style={{
+            marginBottom: 20,
+            background: 'linear-gradient(135deg, rgba(124,58,237,.12), rgba(14,165,233,.06))',
+            border: '1px solid rgba(124,58,237,.3)'
+          }}
+        >
+          <div className="row-between" style={{ marginBottom: 8 }}>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>🌙 Mode Journée Sans</div>
+            <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => activerJourneeSans(false)}>
+              Revenir au mode normal
+            </button>
+          </div>
+          <div className="text-muted" style={{ fontSize: 13, marginBottom: 16 }}>
+            Aujourd'hui, on ne casse pas la chaîne. Une seule chose suffit — le reste peut attendre, sans culpabilité.
+          </div>
+          {miniTache ? (
+            <div className="mission-card">
+              <div className="mission-titre" style={{ marginBottom: 8 }}>{miniTache.titre}</div>
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn-launch" style={{ flex: 2 }} onClick={() => setFocusTache(miniTache)}>
+                  🚀 Juste ça
+                </button>
+                <button
+                  className="btn-ghost"
+                  style={{ flex: 1, fontSize: 13 }}
+                  onClick={async () => { await terminer(miniTache); await chargerMiniTache() }}
+                >
+                  ✓ Fait
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Ton strict minimum aujourd'hui :</div>
+              <div className="text-muted" style={{ fontSize: 13 }}>
+                Fais 2 minutes sur une seule chose. N'importe laquelle. C'est tout ce qui compte aujourd'hui.
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+      <>
+      {energieJour && energieJour.niveau <= 2 && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: '12px 16px',
+            background: 'rgba(124,58,237,.08)',
+            border: '1px solid rgba(124,58,237,.25)',
+            borderRadius: 'var(--radius)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12
+          }}
+        >
+          <div style={{ fontSize: 13 }}>
+            🌙 Journée difficile ? Passe en <strong>mode minimum</strong> pour garder ta chaîne sans t'épuiser.
+          </div>
+          <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }} onClick={() => activerJourneeSans(true)}>
+            Activer
+          </button>
+        </div>
+      )}
+
       {/* ── Missions du jour ── */}
       <div style={{ marginBottom: 20 }}>
         <div className="row-between" style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 900, fontSize: 18 }}>⚔️ Tes 3 missions du jour</div>
-          <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={regenerer}>
-            ↻ Changer
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={regenerer}>
+              ↻ Changer
+            </button>
+            <button
+              className="btn-ghost"
+              style={{ fontSize: 13 }}
+              onClick={() => setShowTemplates(true)}
+            >
+              🎲 Choisis pour moi
+            </button>
+          </div>
         </div>
 
         {missions.length === 0 ? (
@@ -160,7 +384,17 @@ export default function AccueilScreen(): JSX.Element {
                     <div className="mission-titre">{t.titre}</div>
                     {t.description && <div className="text-muted" style={{ marginTop: 3 }}>{t.description}</div>}
                   </div>
-                  <button className="btn-icon" onClick={() => window.api.ignorerTache(t.id).then(() => setMissions((p) => p.filter((m) => m.id !== t.id)))}>✕</button>
+                  <div className="row" style={{ gap: 6 }}>
+                    <button
+                      className="btn-icon"
+                      title={t.estPivot ? 'Tâche pivot' : 'Définir comme tâche pivot'}
+                      style={{ color: t.estPivot ? 'var(--gold)' : 'var(--text-muted)' }}
+                      onClick={() => togglePivot(t)}
+                    >
+                      {t.estPivot ? '★' : '☆'}
+                    </button>
+                    <button className="btn-icon" title="Reporter" onClick={() => setExcuseTache(t)}>✕</button>
+                  </div>
                 </div>
                 <div className="mission-meta">
                   <span className={`badge badge-${t.niveauEnergie}`} style={{ background: ENERGIE_COULEUR[t.niveauEnergie] + '22', color: ENERGIE_COULEUR[t.niveauEnergie] }}>
@@ -184,6 +418,9 @@ export default function AccueilScreen(): JSX.Element {
         )}
       </div>
 
+      </>
+      )}
+
       {/* ── Capture rapide ── */}
       <div className="card">
         <div style={{ fontWeight: 700, marginBottom: 8 }}>💡 Capture rapide — vide ta tête</div>
@@ -201,6 +438,52 @@ export default function AccueilScreen(): JSX.Element {
         </div>
         <div className="text-muted" style={{ marginTop: 6 }}>Appuie sur Entrée. On s'occupera de ça plus tard.</div>
       </div>
+
+      {excuseTache && (
+        <ExcuseBusterModal
+          tache={excuseTache}
+          onSyMettre={() => { const t = excuseTache; setExcuseTache(null); setFocusTache(t) }}
+          onReporter={async () => {
+            const t = excuseTache
+            setExcuseTache(null)
+            await window.api.ignorerTache(t.id)
+            setMissions((p) => p.filter((m) => m.id !== t.id))
+          }}
+          onClose={() => setExcuseTache(null)}
+        />
+      )}
+
+      {showTemplates && (
+        <TemplatesModal
+          onClose={() => setShowTemplates(false)}
+          onSelectTemplate={appliquerTemplate}
+        />
+      )}
+
+      {showRevue && (
+        <RevueHebdoModal
+          onClose={() => setShowRevue(false)}
+          onSaved={() => setRevueFaite(true)}
+        />
+      )}
+
+      <button
+        className={revueFaite ? 'btn-ghost' : 'btn-launch'}
+        style={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          borderRadius: 999,
+          padding: '12px 20px',
+          fontSize: 14,
+          fontWeight: 700,
+          zIndex: 50,
+          background: revueFaite ? 'rgba(16,185,129,.15)' : undefined
+        }}
+        onClick={() => setShowRevue(true)}
+      >
+        {revueFaite ? '✅ Revue faite' : '📅 Revue de la semaine'}
+      </button>
     </div>
   )
 }

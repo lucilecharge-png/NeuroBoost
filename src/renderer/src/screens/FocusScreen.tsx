@@ -7,7 +7,7 @@ interface Props {
   onAbandonner: () => void
 }
 
-type Phase = 'choix-duree' | 'en-cours' | 'bloque' | 'fini'
+type Phase = 'choix-duree' | 'en-cours' | 'bloque' | 'fini' | 'post-it' | 'pause-corpo'
 
 const DUREES = [
   { label: '2 min', subtitle: 'Mode chrysalide 🦋', min: 2 },
@@ -21,6 +21,8 @@ function fmtTime(s: number): string {
   const sec = s % 60
   return `${m}:${sec.toString().padStart(2, '0')}`
 }
+
+const CORPO_PAUSE_THRESHOLD_S = 25 * 60
 
 const MICRO_STEPS = [
   "Ouvre juste le fichier / l'application",
@@ -38,18 +40,33 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
   const [debutMs, setDebutMs] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [microStep] = useState(() => MICRO_STEPS[Math.floor(Math.random() * MICRO_STEPS.length)])
+  const [totalFocusMin, setTotalFocusMin] = useState(0)
+  const [alerteEnergieIgnoree, setAlerteEnergieIgnoree] = useState(false)
+  const [postItNote, setPostItNote] = useState('')
+  const [phaseAvantPostIt, setPhaseAvantPostIt] = useState<Phase>('en-cours')
+  const [elapsedS, setElapsedS] = useState(0)
+  const [customMin, setCustomMin] = useState(10)
+  const corpoPauseTriggered = useRef(false)
+
+  function lancerCustom() {
+    const min = Math.min(90, Math.max(1, Math.round(customMin) || 1))
+    demarrer(min)
+  }
 
   function demarrer(min: number) {
     setDureePrevue(min)
     setRemaining(min * 60)
     setPhase('en-cours')
     setDebutMs(Date.now())
+    setElapsedS(0)
+    corpoPauseTriggered.current = false
     window.api.demarrerSession(tache.id, min).then((s) => setSessionId(s.id))
   }
 
   useEffect(() => {
     if (phase !== 'en-cours') return
     intervalRef.current = setInterval(() => {
+      setElapsedS((e) => e + 1)
       setRemaining((r) => {
         if (r <= 1) {
           clearInterval(intervalRef.current!)
@@ -62,6 +79,25 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [phase])
 
+  useEffect(() => {
+    if (phase !== 'en-cours') return
+    if (dureePrevue < 25) return
+    if (elapsedS < CORPO_PAUSE_THRESHOLD_S) return
+    if (corpoPauseTriggered.current) return
+    corpoPauseTriggered.current = true
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    setPhase('pause-corpo')
+  }, [elapsedS, phase, dureePrevue])
+
+  useEffect(() => {
+    window.api.listSessionsAujourdHui().then((sessions) => {
+      const total = sessions
+        .filter((s) => s.completee && s.dureeReelleMin !== null)
+        .reduce((sum, s) => sum + (s.dureeReelleMin ?? 0), 0)
+      setTotalFocusMin(total)
+    }).catch(console.error)
+  }, [])
+
   async function terminer() {
     if (intervalRef.current) clearInterval(intervalRef.current)
     const dureeReelle = Math.round((Date.now() - debutMs) / 60000)
@@ -69,27 +105,160 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
     await onTerminer(Math.max(1, dureeReelle))
   }
 
-  async function abandonner() {
+  function allerAuPostIt() {
     if (intervalRef.current) clearInterval(intervalRef.current)
-    if (sessionId && phase === 'en-cours') {
-      const dureeReelle = Math.round((Date.now() - debutMs) / 60000)
+    setPhaseAvantPostIt(phase)
+    setPhase('post-it')
+  }
+
+  async function executerAbandon() {
+    // debutMs is set once in demarrer() and never changes — safe to read in closure
+    const dureeReelle = Math.round((Date.now() - debutMs) / 60000)
+    if (sessionId && phaseAvantPostIt === 'en-cours') {
       await window.api.terminerSession(sessionId, false, Math.max(1, dureeReelle))
     }
     onAbandonner()
+  }
+
+  async function confirmerPostIt() {
+    if (postItNote.trim()) {
+      await window.api.addCapture(`📝 ${tache.titre} — ${postItNote.trim()}`)
+    }
+    await executerAbandon()
+  }
+
+  function reprendreFocus() {
+    corpoPauseTriggered.current = false
+    setElapsedS(0)
+    setPhase('en-cours')
+  }
+
+  async function abandonner() {
+    if (phase === 'en-cours' || phase === 'fini') {
+      allerAuPostIt()
+    } else {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      if (sessionId) {
+        const dureeReelle = Math.round((Date.now() - debutMs) / 60000)
+        await window.api.terminerSession(sessionId, false, Math.max(1, dureeReelle))
+      }
+      onAbandonner()
+    }
+  }
+
+  const montrerAlerteEnergie =
+    phase === 'choix-duree' &&
+    (!alerteEnergieIgnoree || totalFocusMin >= 300) &&
+    totalFocusMin >= 240
+
+  // ─── Pause Corpo ──────────────────────────────────────────────────────────
+  if (phase === 'pause-corpo') {
+    return (
+      <div className="focus-overlay">
+        <div style={{ fontSize: 64, marginBottom: 8 }}>🧘</div>
+        <div className="focus-titre">Pause Corpo !</div>
+        <div className="text-muted" style={{ textAlign: 'center', maxWidth: 380, marginBottom: 24 }}>
+          Tu focus depuis 25 min — prends 2 minutes pour toi. Le timer t'attend.
+        </div>
+        <div style={{ width: '100%', maxWidth: 380, marginBottom: 24 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[
+              '🦵 Lève-toi et étire les jambes',
+              '💧 Bois un verre d\'eau',
+              '👀 Regarde au loin 20 secondes'
+            ].map((s, i) => (
+              <div
+                key={i}
+                style={{ padding: '14px 18px', background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 'var(--radius)', fontSize: 15 }}
+              >
+                {s}
+              </div>
+            ))}
+          </div>
+        </div>
+        <button className="btn-launch" style={{ fontSize: 17 }} onClick={reprendreFocus}>
+          ✓ Pause faite, je reprends
+        </button>
+      </div>
+    )
+  }
+
+  // ─── Post-it de transition ────────────────────────────────────────────────
+  if (phase === 'post-it') {
+    return (
+      <div className="focus-overlay">
+        <div style={{ fontSize: 40, marginBottom: 8 }}>📝</div>
+        <div className="focus-titre" style={{ maxWidth: 480 }}>Avant de partir…</div>
+        <div className="text-muted" style={{ textAlign: 'center', maxWidth: 400, marginBottom: 20 }}>
+          Laisse une note à ton futur toi. Où en étais-tu ? Quelle est la prochaine étape ?
+        </div>
+        <div style={{ width: '100%', maxWidth: 440 }}>
+          <textarea
+            className="textarea"
+            style={{ minHeight: 100, fontSize: 14, marginBottom: 12 }}
+            placeholder={`Ex : "J'en étais à la partie intro, la prochaine étape est de rédiger la section 2"`}
+            value={postItNote}
+            onChange={(e) => setPostItNote(e.target.value)}
+            autoFocus
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <button className="btn-launch" onClick={confirmerPostIt}>
+              💾 Sauvegarder et partir
+            </button>
+            <button className="btn-ghost" onClick={executerAbandon}>
+              Passer (quitter sans noter)
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // ─── Choix de durée ───────────────────────────────────────────────────────
   if (phase === 'choix-duree') {
     return (
       <div className="focus-overlay">
+        {/* No session started yet — skip post-it, go straight to accueil */}
         <button className="btn-ghost" style={{ position: 'absolute', top: 20, left: 20, fontSize: 13 }} onClick={onAbandonner}>
           ← Retour
         </button>
+        {montrerAlerteEnergie && (
+          <div style={{ width: '100%', maxWidth: 440, padding: '16px', background: 'rgba(239,68,68,.1)', border: '2px solid rgba(239,68,68,.4)', borderRadius: 'var(--radius-lg)', marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 16, color: '#ef4444', marginBottom: 8 }}>
+              🔋 Alerte Énergie
+            </div>
+            <div style={{ fontSize: 13, lineHeight: 1.7, marginBottom: 12 }}>
+              Tu as déjà {totalFocusMin} minutes de focus aujourd'hui. Continuer risque de vider ta batterie pour demain. Ton cerveau TDAH a besoin de récupération.
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                className="btn-ghost"
+                style={{ flex: 1, fontSize: 13 }}
+                onClick={onAbandonner}
+              >
+                ← M'arrêter ici
+              </button>
+              <button
+                className="btn-ghost"
+                style={{ flex: 1, fontSize: 12, color: 'var(--text-muted)' }}
+                onClick={() => setAlerteEnergieIgnoree(true)}
+              >
+                Je comprends, je continue
+              </button>
+            </div>
+          </div>
+        )}
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>⏱</div>
           <div className="focus-titre">{tache.titre}</div>
           {tache.description && <div className="text-muted" style={{ marginTop: 6 }}>{tache.description}</div>}
         </div>
+        {tache.pourquoi && (
+          <div style={{ width: '100%', maxWidth: 440, padding: '14px 16px', background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.35)', borderRadius: 'var(--radius-lg)', textAlign: 'center' }}>
+            <div style={{ fontSize: 12, color: 'var(--gold)', fontWeight: 700, marginBottom: 4 }}>💛 Pourquoi tu fais ça</div>
+            <div style={{ fontSize: 14, fontStyle: 'italic', lineHeight: 1.6 }}>« {tache.pourquoi} »</div>
+          </div>
+        )}
         <div style={{ width: '100%', maxWidth: 440 }}>
           <div style={{ fontWeight: 700, textAlign: 'center', marginBottom: 14, color: 'var(--text-muted)' }}>
             Pour combien de temps tu t'engages ?
@@ -118,6 +287,46 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
                 <span style={{ fontSize: 11, color: d.min === 2 ? 'rgba(255,255,255,.8)' : 'var(--text-muted)' }}>{d.subtitle}</span>
               </button>
             ))}
+          </div>
+
+          {/* ── Durée personnalisée ── */}
+          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-card)', border: '2px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '12px 14px' }}>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, whiteSpace: 'nowrap' }}>⚙️ Perso</span>
+            <button
+              type="button"
+              className="btn-ghost"
+              style={{ width: 34, height: 34, padding: 0, fontSize: 20, fontWeight: 900, lineHeight: 1 }}
+              onClick={() => setCustomMin((m) => Math.max(1, m - 1))}
+            >
+              −
+            </button>
+            <input
+              type="number"
+              className="input"
+              min={1}
+              max={90}
+              value={customMin}
+              onChange={(e) => setCustomMin(+e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') lancerCustom() }}
+              style={{ width: 64, textAlign: 'center', fontSize: 18, fontWeight: 800 }}
+            />
+            <button
+              type="button"
+              className="btn-ghost"
+              style={{ width: 34, height: 34, padding: 0, fontSize: 20, fontWeight: 900, lineHeight: 1 }}
+              onClick={() => setCustomMin((m) => Math.min(90, m + 1))}
+            >
+              +
+            </button>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>min</span>
+            <button
+              type="button"
+              className="btn-launch"
+              style={{ flex: 1, fontSize: 14 }}
+              onClick={lancerCustom}
+            >
+              🚀 Lancer
+            </button>
           </div>
         </div>
         <div style={{ textAlign: 'center', maxWidth: 380 }}>
@@ -210,7 +419,7 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
         <button className="btn-launch" style={{ fontSize: 18 }} onClick={terminer}>
           🎉 OUI, c'est fait !
         </button>
-        <button className="btn-ghost" onClick={() => { setRemaining(5 * 60); setPhase('en-cours') }}>
+        <button className="btn-ghost" onClick={() => { setRemaining(5 * 60); setElapsedS(0); corpoPauseTriggered.current = false; setPhase('en-cours') }}>
           ⏱ +5 min de plus
         </button>
         <button className="btn-ghost" onClick={abandonner}>
