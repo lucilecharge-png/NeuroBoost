@@ -1,6 +1,6 @@
 // Logique de jeu : XP, niveaux, achievements, coins — toute la mécanique centrale.
 import type { Db } from './index'
-import type { ProfilDTO, AchievementDTO, CompletionResult, TacheDTO, NiveauEnergieJour, EnergieDTO, CaptureDTO, RecompenseDTO, SessionFocusDTO, StatsDTO, StatutTache, NiveauEnergie, VictoireDTO, MatriceItemDTO, ReveDTO, CapsuleDTO, BilanReponseDTO } from '../../shared/types'
+import type { ProfilDTO, AchievementDTO, CompletionResult, TacheDTO, NiveauEnergieJour, EnergieDTO, CaptureDTO, RecompenseDTO, SessionFocusDTO, StatsDTO, StatutTache, NiveauEnergie, VictoireDTO, MatriceItemDTO, ReveDTO, CapsuleDTO, BilanReponseDTO, RevueHebdoDTO, RevueReponse } from '../../shared/types'
 
 // ─── XP / Niveaux ─────────────────────────────────────────────────────────────
 
@@ -462,4 +462,41 @@ export function getBilanReponses(db: Db): BilanReponseDTO[] {
 
 export function setBilanReponse(db: Db, questionId: number, reponse: string): void {
   db.prepare("INSERT INTO bilan_reponses (question_id, reponse, date_entree) VALUES (?, ?, date('now','localtime')) ON CONFLICT(question_id, date_entree) DO UPDATE SET reponse = excluded.reponse").run(questionId, reponse)
+}
+
+// ─── Revue hebdomadaire ───────────────────────────────────────────────────────
+
+export function getRevueHebdo(db: Db, semaine: string): RevueHebdoDTO | null {
+  const row = db.prepare('SELECT * FROM revue_hebdo WHERE semaine = ?').get(semaine) as {
+    id: number; semaine: string; reponses: string; xp_attribue: number; cree_le: string
+  } | undefined
+  if (!row) return null
+  return {
+    id: row.id,
+    semaine: row.semaine,
+    reponses: JSON.parse(row.reponses) as RevueReponse[],
+    xpAttribue: row.xp_attribue,
+    creeLe: row.cree_le
+  }
+}
+
+export function saveRevueHebdo(
+  db: Db,
+  semaine: string,
+  reponses: RevueReponse[]
+): { revue: RevueHebdoDTO; xpGagne: number } {
+  const xpGagne = 100
+  db.prepare(`
+    INSERT INTO revue_hebdo (semaine, reponses, xp_attribue)
+    VALUES (?, ?, ?)
+    ON CONFLICT(semaine) DO UPDATE SET reponses = excluded.reponses
+  `).run(semaine, JSON.stringify(reponses), xpGagne)
+
+  const joueur = db.prepare('SELECT * FROM profil WHERE id = 1').get() as { xp: number; niveau: number } | undefined
+  if (joueur) {
+    const newXp = joueur.xp + xpGagne
+    db.prepare('UPDATE profil SET xp = ? WHERE id = 1').run(newXp)
+  }
+
+  return { revue: getRevueHebdo(db, semaine)!, xpGagne }
 }

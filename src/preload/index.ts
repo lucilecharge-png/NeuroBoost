@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { NeuroBoostApi } from '../shared/types'
+import type { NeuroBoostApi, RevueReponse } from '../shared/types'
 
 const api: NeuroBoostApi = {
   getProfil: () => ipcRenderer.invoke('profil:get'),
@@ -57,7 +57,10 @@ const api: NeuroBoostApi = {
   createCapsule: (message, date) => ipcRenderer.invoke('coaching:createCapsule', message, date),
   ouvrirCapsule: (id) => ipcRenderer.invoke('coaching:ouvrirCapsule', id),
   getBilanReponses: () => ipcRenderer.invoke('coaching:getBilan'),
-  setBilanReponse: (qId, rep) => ipcRenderer.invoke('coaching:setBilan', qId, rep)
+  setBilanReponse: (qId, rep) => ipcRenderer.invoke('coaching:setBilan', qId, rep),
+
+  getRevueHebdo: (semaine: string) => ipcRenderer.invoke('revue:get', semaine),
+  saveRevueHebdo: (semaine: string, reponses: RevueReponse[]) => ipcRenderer.invoke('revue:save', semaine, reponses)
 }
 
 contextBridge.exposeInMainWorld('api', api)

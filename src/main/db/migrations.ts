@@ -208,5 +208,16 @@ export const MIGRATIONS: string[] = [
     ('Sortie spontanée — café, parc, musée, brocante', 60, '🗺️'),
     ('Une nuit sans alarme — dormir jusqu''au bout', 80, '🌙'),
     ('Achat plaisir coup de cœur — vêtement, livre, gadget', 120, '🛍️');
+  `,
+
+  // v5 — Revue hebdomadaire
+  `
+  CREATE TABLE IF NOT EXISTS revue_hebdo (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    semaine TEXT UNIQUE NOT NULL,
+    reponses TEXT NOT NULL DEFAULT '[]',
+    xp_attribue INTEGER NOT NULL DEFAULT 0,
+    cree_le TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+  );
   `
 ]

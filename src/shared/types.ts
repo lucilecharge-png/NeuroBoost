@@ -182,6 +182,10 @@ export interface NeuroBoostApi {
   ouvrirCapsule: (id: number) => Promise<CapsuleDTO>
   getBilanReponses: () => Promise<BilanReponseDTO[]>
   setBilanReponse: (questionId: number, reponse: string) => Promise<void>
+
+  // Revue hebdomadaire
+  getRevueHebdo: (semaine: string) => Promise<RevueHebdoDTO | null>
+  saveRevueHebdo: (semaine: string, reponses: RevueReponse[]) => Promise<{ revue: RevueHebdoDTO; xpGagne: number }>
 }
 
 // ─── Types coaching ───────────────────────────────────────────────────────────
@@ -191,3 +195,18 @@ export interface MatriceItemDTO { id: number; texte: string; type: 'controle' | 
 export interface ReveDTO { id: number; texte: string; actionExtraite: string | null; tacheId: number | null }
 export interface CapsuleDTO { id: number; message: string; dateOuverture: string; ouvert: boolean; creeLe: string }
 export interface BilanReponseDTO { questionId: number; reponse: string; dateEntree: string }
+
+// ─── Revue hebdomadaire ───────────────────────────────────────────────────────
+
+export interface RevueReponse {
+  questionId: number
+  reponse: string
+}
+
+export interface RevueHebdoDTO {
+  id: number
+  semaine: string
+  reponses: RevueReponse[]
+  xpAttribue: number
+  creeLe: string
+}

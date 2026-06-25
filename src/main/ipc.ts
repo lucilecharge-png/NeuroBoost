@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import type { Db } from './db/index'
 import * as G from './db/game'
-import type { TacheInput, NiveauEnergie, StatutTache, NiveauEnergieJour } from '../shared/types'
+import type { TacheInput, NiveauEnergie, StatutTache, NiveauEnergieJour, RevueReponse } from '../shared/types'
 
 export function registerIpcHandlers(db: Db): void {
   // Profil
@@ -69,4 +69,8 @@ export function registerIpcHandlers(db: Db): void {
   ipcMain.handle('coaching:ouvrirCapsule', (_e, id: number) => G.ouvrirCapsule(db, id))
   ipcMain.handle('coaching:getBilan', () => G.getBilanReponses(db))
   ipcMain.handle('coaching:setBilan', (_e, questionId: number, reponse: string) => G.setBilanReponse(db, questionId, reponse))
+
+  // Revue hebdomadaire
+  ipcMain.handle('revue:get', (_e, semaine: string) => G.getRevueHebdo(db, semaine))
+  ipcMain.handle('revue:save', (_e, semaine: string, reponses: RevueReponse[]) => G.saveRevueHebdo(db, semaine, reponses))
 }
