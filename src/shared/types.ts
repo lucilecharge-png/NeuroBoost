@@ -133,6 +133,77 @@ export interface CompletionResult {
   achievementsDebloques: AchievementDTO[]
 }
 
+// ─── Agenda ───────────────────────────────────────────────────────────────────
+
+export type JourSemaine = 'LU' | 'MA' | 'ME' | 'JE' | 'VE' | 'SA' | 'DI'
+export type FreqRecurrence = 'quotidien' | 'hebdo' | 'mensuel' | 'annuel'
+
+export interface RecurrenceRule {
+  freq: FreqRecurrence
+  intervalle: number // >= 1
+  jours?: JourSemaine[] // hebdo uniquement
+  fin?: { type: 'date'; date: string } | { type: 'count'; count: number }
+}
+
+export interface CategorieDTO {
+  id: number
+  nom: string
+  couleur: string
+  emoji: string | null
+  estSysteme: boolean
+}
+
+export interface EvenementInput {
+  titre: string
+  debut: string // 'YYYY-MM-DD HH:MM'
+  fin: string
+  allDay?: boolean
+  categorieId?: number | null
+  description?: string | null
+  tacheId?: number | null
+  recurrence?: RecurrenceRule | null
+  rappelMin?: number | null
+}
+
+// Le « maître » tel que stocké
+export interface EvenementDTO {
+  id: number
+  titre: string
+  debut: string
+  fin: string
+  allDay: boolean
+  categorieId: number | null
+  description: string | null
+  tacheId: number | null
+  recurrence: RecurrenceRule | null
+  rappelMin: number | null
+}
+
+// Une occurrence aplatie (ce que consomment les vues)
+export interface OccurrenceDTO {
+  masterId: number
+  dateOccurrence: string // 'YYYY-MM-DD' de l'occurrence
+  titre: string
+  debut: string // 'YYYY-MM-DD HH:MM' de CETTE occurrence
+  fin: string
+  allDay: boolean
+  categorie: CategorieDTO | null
+  description: string | null
+  tacheId: number | null
+  estRecurrent: boolean
+  rappelMin: number | null
+}
+
+export type ModeRecurrence = 'occurrence' | 'suivantes' | 'serie'
+
+export interface RappelOccurrence {
+  masterId: number
+  dateOccurrence: string
+  titre: string
+  debut: string
+  rappelMin: number
+}
+
 // ─── API IPC ─────────────────────────────────────────────────────────────────
 
 export interface NeuroBoostApi {
@@ -216,6 +287,15 @@ export interface NeuroBoostApi {
   // Revue hebdomadaire
   getRevueHebdo: (semaine: string) => Promise<RevueHebdoDTO | null>
   saveRevueHebdo: (semaine: string, reponses: RevueReponse[]) => Promise<{ revue: RevueHebdoDTO; xpGagne: number }>
+
+  // Agenda
+  listCategories: () => Promise<CategorieDTO[]>
+  createCategorie: (nom: string, couleur: string, emoji: string | null) => Promise<CategorieDTO>
+  deleteCategorie: (id: number) => Promise<void>
+  listEvenements: (debut: string, fin: string) => Promise<OccurrenceDTO[]>
+  createEvenement: (input: EvenementInput) => Promise<EvenementDTO>
+  updateEvenement: (masterId: number, dateOccurrence: string, mode: ModeRecurrence, input: Partial<EvenementInput>) => Promise<void>
+  deleteEvenement: (masterId: number, dateOccurrence: string, mode: ModeRecurrence) => Promise<void>
 }
 
 // ─── Types coaching ───────────────────────────────────────────────────────────
