@@ -1,7 +1,7 @@
 // Logique d'agenda : CRUD catégories/événements, expansion des occurrences,
 // modes d'édition récurrente, rappels. Ne dépend que de l'interface `Db`.
 import type { Db } from './db'
-import type { CategorieDTO, EvenementDTO, EvenementInput, OccurrenceDTO } from '../../../shared/types'
+import type { CategorieDTO, EvenementDTO, EvenementInput, OccurrenceDTO, ModeRecurrence, RecurrenceRule } from '../../../shared/types'
 import { serialiserRRULE, parserRRULE, expanseRecurrence, parseDateTime, fmtDateTime } from './recurrence'
 
 // ─── Catégories ───────────────────────────────────────────────────────────────
@@ -148,4 +148,105 @@ export function listEvenements(db: Db, fenetreDebut: string, fenetreFin: string)
 
   occurrences.sort((a, b) => a.debut.localeCompare(b.debut))
   return occurrences
+}
+
+// ─── Édition / suppression avec modes ─────────────────────────────────────────
+
+// Date locale -> veille au format 'YYYY-MM-DD'
+function veille(dateOcc: string): string {
+  const d = parseDateTime(`${dateOcc} 00:00`)
+  d.setDate(d.getDate() - 1)
+  return fmtDateTime(d).slice(0, 10)
+}
+
+function champsFusionnes(master: Record<string, unknown>, input: Partial<EvenementInput>) {
+  const base = evToDTO(master)
+  return {
+    titre: input.titre ?? base.titre,
+    debut: input.debut ?? base.debut,
+    fin: input.fin ?? base.fin,
+    all_day: (input.allDay ?? base.allDay) ? 1 : 0,
+    categorie_id: input.categorieId !== undefined ? input.categorieId : base.categorieId,
+    description: input.description !== undefined ? input.description : base.description,
+    tache_id: input.tacheId !== undefined ? input.tacheId : base.tacheId,
+    rappel_min: input.rappelMin !== undefined ? input.rappelMin : base.rappelMin
+  }
+}
+
+function updateMaster(db: Db, id: number, c: ReturnType<typeof champsFusionnes>, recurrence: string | null): void {
+  db.prepare(`
+    UPDATE evenement SET titre=?, debut=?, fin=?, all_day=?, categorie_id=?, description=?, tache_id=?, rappel_min=?, recurrence=?
+    WHERE id=?
+  `).run(c.titre, c.debut, c.fin, c.all_day, c.categorie_id, c.description, c.tache_id, c.rappel_min, recurrence, id)
+}
+
+export function deleteEvenement(db: Db, masterId: number, dateOccurrence: string, mode: ModeRecurrence): void {
+  if (mode === 'serie') {
+    db.prepare('DELETE FROM evenement WHERE id = ?').run(masterId)
+    return
+  }
+  if (mode === 'occurrence') {
+    db.prepare("INSERT INTO evenement_exception (evenement_id, date_occurrence, type) VALUES (?, ?, 'supprimee')")
+      .run(masterId, dateOccurrence)
+    return
+  }
+  // suivantes : borne le maître à la veille
+  const m = getMaster(db, masterId)
+  if (!m) return
+  const rule = parserRRULE(m.recurrence as string)
+  rule.fin = { type: 'date', date: veille(dateOccurrence) }
+  db.prepare('UPDATE evenement SET recurrence = ? WHERE id = ?').run(serialiserRRULE(rule), masterId)
+  db.prepare('DELETE FROM evenement_exception WHERE evenement_id = ? AND date_occurrence >= ?')
+    .run(masterId, dateOccurrence)
+}
+
+export function updateEvenement(
+  db: Db, masterId: number, dateOccurrence: string, mode: ModeRecurrence, input: Partial<EvenementInput>
+): void {
+  const m = getMaster(db, masterId)
+  if (!m) return
+  const recurrenceActuelle = m.recurrence as string | null
+
+  if (mode === 'serie' || !recurrenceActuelle) {
+    const c = champsFusionnes(m, input)
+    const rrule = input.recurrence !== undefined
+      ? (input.recurrence ? serialiserRRULE(input.recurrence) : null)
+      : recurrenceActuelle
+    updateMaster(db, masterId, c, rrule)
+    return
+  }
+
+  if (mode === 'occurrence') {
+    const c = champsFusionnes(m, input)
+    // Override debut must be on the occurrence's date
+    const heure = (m.debut as string).slice(11)
+    const debutOcc = input.debut ?? `${dateOccurrence} ${heure}`
+    const finOcc = input.fin ?? finDepuisDebut(debutOcc, dureeMs(m.debut as string, m.fin as string))
+    const res = db.prepare(`
+      INSERT INTO evenement (titre, debut, fin, all_day, categorie_id, description, tache_id, recurrence, rappel_min)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)
+    `).run(c.titre, debutOcc, finOcc, c.all_day, c.categorie_id, c.description, c.tache_id, c.rappel_min)
+    db.prepare("INSERT INTO evenement_exception (evenement_id, date_occurrence, type, override_id) VALUES (?, ?, 'deplacee', ?)")
+      .run(masterId, dateOccurrence, Number(res.lastInsertRowid))
+    return
+  }
+
+  // suivantes : borne le maître à la veille, crée un nouveau maître à partir de dateOccurrence
+  const rule = parserRRULE(recurrenceActuelle)
+  const ruleAncienne: RecurrenceRule = { ...rule, fin: { type: 'date', date: veille(dateOccurrence) } }
+  db.prepare('UPDATE evenement SET recurrence = ? WHERE id = ?').run(serialiserRRULE(ruleAncienne), masterId)
+
+  const c = champsFusionnes(m, input)
+  const heure = (m.debut as string).slice(11)
+  const nouveauDebut = input.debut ?? `${dateOccurrence} ${heure}`
+  const nouvelleRecurrence = input.recurrence ? serialiserRRULE(input.recurrence) : serialiserRRULE({ ...rule, fin: undefined })
+  const res = db.prepare(`
+    INSERT INTO evenement (titre, debut, fin, all_day, categorie_id, description, tache_id, recurrence, rappel_min)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    c.titre, nouveauDebut, finDepuisDebut(nouveauDebut, dureeMs(m.debut as string, m.fin as string)),
+    c.all_day, c.categorie_id, c.description, c.tache_id, nouvelleRecurrence, c.rappel_min
+  )
+  db.prepare('UPDATE evenement_exception SET evenement_id = ? WHERE evenement_id = ? AND date_occurrence >= ?')
+    .run(Number(res.lastInsertRowid), masterId, dateOccurrence)
 }
