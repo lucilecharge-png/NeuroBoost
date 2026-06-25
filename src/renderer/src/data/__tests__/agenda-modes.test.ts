@@ -55,4 +55,23 @@ describe('modes de récurrence', () => {
     A.deleteEvenement(db, id, '2026-06-03', 'serie')
     expect(A.listEvenements(db, '2026-06-01', '2026-06-30')).toHaveLength(0)
   })
+
+  it('une occurrence récurrente porte sa règle (recurrence dans le DTO)', async () => {
+    const { db } = await dbAvecSerie()
+    const occ = A.listEvenements(db, '2026-06-01', '2026-06-02')
+    expect(occ[0].recurrence).toEqual({ freq: 'quotidien', intervalle: 1 })
+    expect(occ[0].estRecurrent).toBe(true)
+  })
+
+  it('occurrence déplacée à une autre semaine reste visible à sa nouvelle date', async () => {
+    const { db, id } = await dbAvecSerie()
+    A.updateEvenement(db, id, '2026-06-03', 'occurrence', { debut: '2026-06-15 14:00', fin: '2026-06-15 15:00' })
+    const sem1 = A.listEvenements(db, '2026-06-01', '2026-06-07').map((o) => o.dateOccurrence)
+    expect(sem1).not.toContain('2026-06-03')
+    const sem3 = A.listEvenements(db, '2026-06-15', '2026-06-21')
+    const moved = sem3.find((o) => o.dateOccurrence === '2026-06-15')
+    expect(moved).toBeTruthy()
+    expect(moved?.debut).toBe('2026-06-15 14:00')
+    expect(moved?.estRecurrent).toBe(false)
+  })
 })

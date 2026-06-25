@@ -94,6 +94,7 @@ function occToDTO(
     description: ev.description,
     tacheId: ev.tacheId,
     estRecurrent,
+    recurrence: ev.recurrence,
     rappelMin: ev.rappelMin
   }
 }
@@ -118,6 +119,21 @@ export function listEvenements(db: Db, fenetreDebut: string, fenetreFin: string)
         .map((e) => [e.date_occurrence as string, e.override_id as number])
     )
 
+    // Nouvelles dates d'arrivée des overrides (pour ne pas rendre la place en double
+    // si l'override atterrit dans la même fenêtre qu'une occurrence normale de la série)
+    const nouvellesDatesOverride = new Set(
+      (db.prepare(`
+        SELECT date(e.debut) AS nd FROM evenement e
+        JOIN evenement_exception ex ON ex.override_id = e.id
+        WHERE ex.evenement_id = ? AND ex.type = 'deplacee'
+          AND date(e.debut) >= ? AND date(e.debut) <= ?
+      `).all(m.id, fenetreDebut, fenetreFin) as Record<string, unknown>[])
+        .map((r) => r.nd as string)
+    )
+    // Dates à sauter dans la boucle d'expansion : supprimées OU déplacées (origine)
+    // OU dates d'arrivée des overrides (évite double occurrence si la série passe par là)
+    const datesToSkip = new Set([...supprimees, ...deplacees.keys(), ...nouvellesDatesOverride])
+
     const rrule = m.recurrence as string | null
     if (!rrule) {
       const dateOcc = (m.debut as string).slice(0, 10)
@@ -130,20 +146,20 @@ export function listEvenements(db: Db, fenetreDebut: string, fenetreFin: string)
     const rule = parserRRULE(rrule)
     for (const debutOcc of expanseRecurrence(rule, m.debut as string, fenetreDebut, fenetreFin)) {
       const dateOcc = debutOcc.slice(0, 10)
-      if (supprimees.has(dateOcc)) continue
-      const overrideId = deplacees.get(dateOcc)
-      if (overrideId != null) {
-        const ov = getMaster(db, overrideId)
-        if (ov) {
-          const od = (ov.debut as string).slice(0, 10)
-          if (od >= fenetreDebut && od <= fenetreFin) {
-            occurrences.push(occToDTO(ov, ov.debut as string, dateOcc, true, cats))
-          }
-        }
-        continue
-      }
+      if (datesToSkip.has(dateOcc)) continue
       occurrences.push(occToDTO(m, debutOcc, dateOcc, true, cats))
     }
+  }
+
+  // Overrides (occurrences déplacées) : rendus à leur NOUVELLE date dans la fenêtre
+  const overrides = db.prepare(`
+    SELECT e.* FROM evenement e
+    JOIN evenement_exception ex ON ex.override_id = e.id
+    WHERE ex.type = 'deplacee' AND date(e.debut) >= ? AND date(e.debut) <= ?
+  `).all(fenetreDebut, fenetreFin) as Record<string, unknown>[]
+  for (const ov of overrides) {
+    const dateOcc = (ov.debut as string).slice(0, 10)
+    occurrences.push(occToDTO(ov, ov.debut as string, dateOcc, false, cats))
   }
 
   occurrences.sort((a, b) => a.debut.localeCompare(b.debut))
