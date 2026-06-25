@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import type { OccurrenceDTO } from '../../../../shared/types'
 
 interface Props {
@@ -19,7 +20,7 @@ export default function MoisView({ ancre, occurrences, onCreerJour, onEditer, on
     const d = new Date(debutGrille); d.setDate(debutGrille.getDate() + i)
     return d
   })
-  let dragOcc: OccurrenceDTO | null = null
+  const dragOcc = useRef<OccurrenceDTO | null>(null)
   const fmt = (d: Date): string => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`
 
   return (
@@ -34,13 +35,13 @@ export default function MoisView({ ancre, occurrences, onCreerJour, onEditer, on
         return (
           <div key={date} className={`mois-case${duMois ? '' : ' hors-mois'}`}
             onClick={() => onCreerJour(date)}
-            onMouseUp={() => { if (dragOcc) { onDeplacer(dragOcc, date); dragOcc = null } }}>
+            onMouseUp={() => { if (dragOcc.current) { onDeplacer(dragOcc.current, date); dragOcc.current = null } }}>
             <div className="mois-num">{d.getDate()}</div>
             {occ.slice(0, 3).map((o) => (
               <div key={`${o.masterId}-${o.dateOccurrence}`} className="mois-pastille"
                 style={{ background: o.categorie?.couleur ?? '#7c3aed' }}
                 onClick={(e) => { e.stopPropagation(); onEditer(o) }}
-                onMouseDown={(e) => { e.stopPropagation(); dragOcc = o }}>
+                onMouseDown={(e) => { e.stopPropagation(); dragOcc.current = o }}>
                 {o.titre}
               </div>
             ))}

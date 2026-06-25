@@ -441,12 +441,18 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 .btn-secondary { background:var(--bg-card,#241a3d); border:1px solid rgba(124,58,237,.3); color:inherit; border-radius:8px; padding:5px 12px; cursor:pointer; }
 
 /* Timeline */
-.timeline { display:flex; overflow-y:auto; max-height:70vh; border:1px solid rgba(124,58,237,.2); border-radius:12px; }
+.timeline-wrap { display:flex; flex-direction:column; border:1px solid rgba(124,58,237,.2); border-radius:12px; overflow:hidden; }
+.timeline-allday { display:flex; background:rgba(124,58,237,.06); border-bottom:1px solid rgba(124,58,237,.2); min-height:28px; }
+.timeline-allday-gutter { width:48px; flex-shrink:0; font-size:10px; color:#9a8fc0; padding:4px 6px 4px 0; text-align:right; }
+.timeline-allday-cell { flex:1; display:flex; flex-wrap:wrap; gap:3px; padding:3px 4px; border-left:1px solid rgba(124,58,237,.12); cursor:pointer; min-height:28px; }
+.allday-chip { border-radius:4px; padding:2px 6px; color:#fff; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.timeline { display:flex; overflow-y:auto; max-height:calc(70vh - 28px); }
 .timeline-gutter { width:48px; flex-shrink:0; }
 .timeline-heure { font-size:11px; color:#9a8fc0; text-align:right; padding-right:6px; border-top:1px solid rgba(124,58,237,.12); }
 .timeline-col { flex:1; position:relative; border-left:1px solid rgba(124,58,237,.12); background:repeating-linear-gradient(transparent,transparent 47px,rgba(124,58,237,.12) 48px); }
 .timeline-event { position:absolute; left:3px; right:3px; border-radius:6px; padding:2px 6px; color:#fff; font-size:12px; overflow:hidden; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.3); }
 .timeline-event-titre { font-weight:600; }
+.timeline-now { position:absolute; left:0; right:0; height:2px; background:var(--danger,#ef4444); pointer-events:none; box-shadow:0 0 6px rgba(239,68,68,.6); z-index:5; }
 
 /* Grille de mois */
 .mois-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }

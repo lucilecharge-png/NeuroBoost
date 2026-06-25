@@ -2,6 +2,16 @@ import { useState } from 'react'
 import type { CategorieDTO, EvenementInput, JourSemaine, ModeRecurrence, OccurrenceDTO, RecurrenceRule } from '../../../../shared/types'
 import CategoriePicker from './CategoriePicker'
 
+function ajouterMs(debut: string, ms: number): string {
+  const [d, t] = debut.split(' ')
+  const [y, mo, da] = d.split('-').map(Number)
+  const [h, mi] = t.split(':').map(Number)
+  const dd = new Date(y, mo - 1, da, h, mi)
+  const r = new Date(dd.getTime() + ms)
+  const p = (n: number) => n.toString().padStart(2, '0')
+  return `${r.getFullYear()}-${p(r.getMonth() + 1)}-${p(r.getDate())} ${p(r.getHours())}:${p(r.getMinutes())}`
+}
+
 interface Props {
   occurrence: OccurrenceDTO | null // null = création
   debutInitial: string             // 'YYYY-MM-DD HH:MM' pré-rempli (création)
@@ -29,20 +39,27 @@ export default function EvenementModal(props: Props): JSX.Element {
   const enEdition = occurrence !== null
 
   const [titre, setTitre] = useState(occurrence?.titre ?? '')
-  const [debut, setDebut] = useState(occurrence?.debut ?? debutInitial)
-  const [fin, setFin] = useState(occurrence?.fin ?? `${debutInitial.slice(0, 11)}${String(Number(debutInitial.slice(11, 13)) + 1).padStart(2, '0')}${debutInitial.slice(13)}`)
+  const [debut, setDebut] = useState(debutInitial)
+  const [fin, setFin] = useState(
+    occurrence
+      ? ajouterMs(debutInitial, new Date(occurrence.fin.replace(' ', 'T')).getTime() - new Date(occurrence.debut.replace(' ', 'T')).getTime())
+      : ajouterMs(debutInitial, 3600000)
+  )
   const [allDay, setAllDay] = useState(occurrence?.allDay ?? false)
   const [categorieId, setCategorieId] = useState<number | null>(occurrence?.categorie?.id ?? null)
   const [description, setDescription] = useState(occurrence?.description ?? '')
   const [rappelMin, setRappelMin] = useState<number | null>(occurrence?.rappelMin ?? null)
 
-  const [recurrent, setRecurrent] = useState(occurrence?.estRecurrent ?? false)
-  const [freq, setFreq] = useState<RecurrenceRule['freq']>('hebdo')
-  const [intervalle, setIntervalle] = useState(1)
-  const [jours, setJours] = useState<JourSemaine[]>(['LU'])
-  const [finType, setFinType] = useState<'jamais' | 'date' | 'count'>('jamais')
-  const [finDate, setFinDate] = useState(debut.slice(0, 10))
-  const [finCount, setFinCount] = useState(10)
+  const recInit = occurrence?.recurrence ?? null
+  const [recurrent, setRecurrent] = useState(recInit !== null)
+  const [freq, setFreq] = useState<RecurrenceRule['freq']>(recInit?.freq ?? 'hebdo')
+  const [intervalle, setIntervalle] = useState(recInit?.intervalle ?? 1)
+  const [jours, setJours] = useState<JourSemaine[]>(recInit?.jours ?? ['LU'])
+  const [finType, setFinType] = useState<'jamais' | 'date' | 'count'>(
+    recInit?.fin?.type === 'date' ? 'date' : recInit?.fin?.type === 'count' ? 'count' : 'jamais'
+  )
+  const [finDate, setFinDate] = useState(recInit?.fin?.type === 'date' ? recInit.fin.date : debutInitial.slice(0, 10))
+  const [finCount, setFinCount] = useState(recInit?.fin?.type === 'count' ? recInit.fin.count : 10)
 
   const [mode, setMode] = useState<ModeRecurrence>('serie')
   const [rappelPerso, setRappelPerso] = useState(false)

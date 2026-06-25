@@ -19,8 +19,12 @@ function aujourdHui(): string {
 
 function joursEntre(debut: string, fin: string): string[] {
   const out: string[] = []
-  const d = new Date(debut); const f = new Date(fin)
-  while (d <= f) { const p = (n: number) => n.toString().padStart(2, '0'); out.push(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`); d.setDate(d.getDate() + 1) }
+  const p = (n: number) => n.toString().padStart(2, '0')
+  const [yd, md, jd] = debut.split('-').map(Number)
+  const [yf, mf, jf] = fin.split('-').map(Number)
+  const d = new Date(yd, md - 1, jd)
+  const f = new Date(yf, mf - 1, jf)
+  while (d <= f) { out.push(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`); d.setDate(d.getDate() + 1) }
   return out
 }
 
