@@ -78,6 +78,7 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
   }
 
   async function executerAbandon() {
+    // debutMs is set once in demarrer() and never changes — safe to read in closure
     const dureeReelle = Math.round((Date.now() - debutMs) / 60000)
     if (sessionId && phaseAvantPostIt === 'en-cours') {
       await window.api.terminerSession(sessionId, false, Math.max(1, dureeReelle))
@@ -140,6 +141,7 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
   if (phase === 'choix-duree') {
     return (
       <div className="focus-overlay">
+        {/* No session started yet — skip post-it, go straight to accueil */}
         <button className="btn-ghost" style={{ position: 'absolute', top: 20, left: 20, fontSize: 13 }} onClick={onAbandonner}>
           ← Retour
         </button>
