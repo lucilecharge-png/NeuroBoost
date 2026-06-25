@@ -124,23 +124,33 @@ export function expanseRecurrence(
       }
       semaines += rule.intervalle
       curseur.setDate(curseur.getDate() + 7 * rule.intervalle)
-      const apresUntil = untilJour !== null && jour(curseur) > untilJour
-      const apresFenetre = jour(curseur) > fenetreFin
-      if (apresFenetre && (untilJour === null || apresUntil)) break
+      const jd = jour(curseur)
+      if (jd > fenetreFin || (untilJour !== null && jd > untilJour)) break
       if (semaines > GARDE) break
     }
     candidats.sort((a, b) => a.getTime() - b.getTime())
   } else {
-    const curseur = new Date(depart)
+    const departDay = depart.getDate()
     for (let i = 0; i < GARDE; i++) {
-      ajoute(curseur)
-      if (rule.freq === 'quotidien') curseur.setDate(curseur.getDate() + rule.intervalle)
-      else if (rule.freq === 'mensuel') curseur.setMonth(curseur.getMonth() + rule.intervalle)
-      else if (rule.freq === 'annuel') curseur.setFullYear(curseur.getFullYear() + rule.intervalle)
-      else curseur.setDate(curseur.getDate() + rule.intervalle) // hebdo sans jours
-      const apresUntil = untilJour !== null && jour(curseur) > untilJour
-      const apresFenetre = jour(curseur) > fenetreFin
-      if (apresFenetre && (untilJour === null || apresUntil)) break
+      let d: Date
+      if (rule.freq === 'mensuel') {
+        d = new Date(depart.getFullYear(), depart.getMonth() + i * rule.intervalle, 1)
+        const dernierJour = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+        d.setDate(Math.min(departDay, dernierJour))
+      } else if (rule.freq === 'annuel') {
+        d = new Date(depart.getFullYear() + i * rule.intervalle, depart.getMonth(), 1)
+        const dernierJour = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+        d.setDate(Math.min(departDay, dernierJour))
+      } else if (rule.freq === 'hebdo') {
+        d = new Date(depart)
+        d.setDate(depart.getDate() + i * 7 * rule.intervalle)
+      } else {
+        // quotidien (et défaut)
+        d = new Date(depart)
+        d.setDate(depart.getDate() + i * rule.intervalle)
+      }
+      ajoute(d)
+      if (jour(d) > fenetreFin || (untilJour !== null && jour(d) > untilJour)) break
     }
   }
 

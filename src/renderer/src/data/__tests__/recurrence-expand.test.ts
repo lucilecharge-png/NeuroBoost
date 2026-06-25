@@ -46,4 +46,11 @@ describe('expanseRecurrence', () => {
     const occ = expanseRecurrence(rule, '2026-06-10 09:00', '2026-06-01', '2026-06-09')
     expect(occ).toEqual([])
   })
+
+  it('mensuel à partir du 31 → clamp en fin de mois court', () => {
+    const rule: RecurrenceRule = { freq: 'mensuel', intervalle: 1 }
+    const occ = expanseRecurrence(rule, '2026-01-31 08:00', '2026-01-01', '2026-04-30')
+    // Jan 31, Feb 28 (clamp), Mar 31, Apr 30 (clamp)
+    expect(occ).toEqual(['2026-01-31 08:00', '2026-02-28 08:00', '2026-03-31 08:00', '2026-04-30 08:00'])
+  })
 })
