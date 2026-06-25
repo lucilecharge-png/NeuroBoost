@@ -20,6 +20,7 @@ export default function App(): JSX.Element {
   const [profil, setProfil] = useState<ProfilDTO | null>(null)
   const [rituel, setRituel] = useState<Phase | null>(null)
   const [backupOuvert, setBackupOuvert] = useState(false)
+  const [sidebarOuvert, setSidebarOuvert] = useState(false)
 
   useEffect(() => {
     window.api.getProfil().then(setProfil)
@@ -43,7 +44,7 @@ export default function App(): JSX.Element {
 
   function nav(id: Onglet, icon: string, label: string): JSX.Element {
     return (
-      <button className={`nav-item${onglet === id ? ' active' : ''}`} onClick={() => setOnglet(id)}>
+      <button className={`nav-item${onglet === id ? ' active' : ''}`} onClick={() => { setOnglet(id); setSidebarOuvert(false) }}>
         <span className="nav-icon">{icon}</span>
         {label}
       </button>
@@ -62,8 +63,17 @@ export default function App(): JSX.Element {
       )}
       {backupOuvert && <BackupModal onFermer={() => setBackupOuvert(false)} />}
 
+      {/* ── Barre supérieure mobile (bouton menu) ── */}
+      <header className="mobile-topbar">
+        <button className="hamburger" aria-label="Ouvrir le menu" onClick={() => setSidebarOuvert(true)}>☰</button>
+        <span className="mobile-topbar-title">NeuroBoost</span>
+      </header>
+
+      {/* Voile derrière le tiroir (mobile) */}
+      {sidebarOuvert && <div className="sidebar-backdrop" onClick={() => setSidebarOuvert(false)} />}
+
       {/* ── Sidebar ── */}
-      <nav className="sidebar">
+      <nav className={`sidebar${sidebarOuvert ? ' open' : ''}`}>
         <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img
             src="/logo-mark.png"
@@ -107,11 +117,11 @@ export default function App(): JSX.Element {
         {nav('rendezvous', '📌', 'Rendez-vous')}
 
         <div style={{ flex: 1 }} />
-        <button className="nav-item" onClick={ouvrirRituel}>
+        <button className="nav-item" onClick={() => { ouvrirRituel(); setSidebarOuvert(false) }}>
           <span className="nav-icon">🌙</span>
           Rituel
         </button>
-        <button className="nav-item" onClick={() => setBackupOuvert(true)}>
+        <button className="nav-item" onClick={() => { setBackupOuvert(true); setSidebarOuvert(false) }}>
           <span className="nav-icon">💾</span>
           Sauvegarde
         </button>

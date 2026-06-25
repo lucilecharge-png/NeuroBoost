@@ -48,7 +48,7 @@ body {
 }
 
 /* ── Layout ─────────────────────────────────────────────────────────────────── */
-.app { display: flex; height: 100vh; }
+.app { display: flex; height: 100vh; height: 100dvh; }
 
 .sidebar {
   width: 220px;
@@ -475,3 +475,57 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 /* Modal */
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; z-index:50; }
 .modal { width:90%; max-height:90vh; overflow-y:auto; }
+
+/* ── Barre mobile + tiroir (masqués en desktop) ──────────────────────────────── */
+.mobile-topbar { display: none; }
+.sidebar-backdrop { display: none; }
+
+@media (max-width: 768px) {
+  /* Barre supérieure fixe avec le bouton menu */
+  .mobile-topbar {
+    display: flex; align-items: center; gap: 12px;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 40;
+    height: calc(52px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 14px 0;
+    background: linear-gradient(180deg, #050f1c, rgba(4,12,24,.92));
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+  }
+  .hamburger {
+    font-size: 22px; line-height: 1;
+    background: transparent; color: var(--accent-glow);
+    padding: 6px 8px; border-radius: 8px;
+  }
+  .hamburger:active { background: rgba(14,165,233,.12); }
+  .mobile-topbar-title {
+    font-size: 18px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--green) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* La sidebar devient un tiroir hors-écran */
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: 270px; max-width: 82%;
+    z-index: 60;
+    transform: translateX(-100%);
+    transition: transform 240ms cubic-bezier(.4,0,.2,1);
+    box-shadow: 0 0 40px rgba(0,0,0,.6);
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  /* Voile derrière le tiroir */
+  .sidebar-backdrop {
+    display: block; position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,.55);
+    -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+  }
+
+  /* Le contenu prend toute la largeur, sous la barre */
+  .main-content { padding-top: calc(52px + env(safe-area-inset-top)); }
+
+  /* Densité réduite pour petits écrans */
+  .screen { padding: 18px 16px; }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+}
