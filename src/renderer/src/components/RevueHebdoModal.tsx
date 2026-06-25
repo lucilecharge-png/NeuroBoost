@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import type { RevueReponse } from '../../../shared/types'
 
 export function getISOWeek(date: Date): string {
@@ -24,7 +24,7 @@ interface Props {
 }
 
 export default function RevueHebdoModal({ onClose, onSaved }: Props): JSX.Element {
-  const semaine = getISOWeek(new Date())
+  const semaine = useMemo(() => getISOWeek(new Date()), [])
   const [step, setStep] = useState(0)
   const [reponses, setReponses] = useState<Record<number, string>>({})
   const [saving, setSaving] = useState(false)
