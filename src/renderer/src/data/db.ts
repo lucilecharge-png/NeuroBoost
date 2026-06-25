@@ -102,3 +102,24 @@ export async function persist(): Promise<void> {
   if (!dbInstance) return
   await localforage.setItem(STORE_KEY, dbInstance.export())
 }
+
+// ── Sauvegarde / restauration par fichier ──
+
+// Sérialise la base courante en fichier SQLite complet (Uint8Array).
+export function exportDb(): Uint8Array {
+  if (!dbInstance) throw new Error('Base non initialisée')
+  return dbInstance.export()
+}
+
+// Remplace la base courante par le contenu d'un fichier importé.
+// Sûreté : on ne touche dbInstance qu'après validation réussie du fichier.
+export async function importDb(bytes: Uint8Array): Promise<void> {
+  if (!SQL) throw new Error('Base non initialisée')
+  // Lève si le fichier n'est pas une base SQLite valide — avant tout remplacement.
+  const next = new SQL.Database(bytes)
+  next.run('PRAGMA foreign_keys = ON')
+  runMigrations(next) // met à niveau un backup d'une version antérieure
+  dbInstance = next
+  dbWrapped = wrap(next)
+  await persist()
+}

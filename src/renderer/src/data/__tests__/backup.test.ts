@@ -31,3 +31,31 @@ describe('runMigrations', () => {
     expect(version).toBe(MIGRATIONS.length)
   })
 })
+
+describe('round-trip de sauvegarde (mécanisme export/import)', () => {
+  it('préserve les données après export puis reload', async () => {
+    const SQL = await loadSql()
+
+    // Base source avec une donnée modifiée
+    const source = new SQL.Database()
+    runMigrations(source)
+    source.run("UPDATE profil SET pseudo = ? WHERE id = 1", ['Lucile'])
+
+    // Export (ce que fait exportDb) → bytes
+    const bytes = source.export()
+
+    // Import (ce que fait importDb) → nouvelle instance + migrations
+    const restored = new SQL.Database(bytes)
+    restored.run('PRAGMA foreign_keys = ON')
+    runMigrations(restored) // no-op ici, mais mettrait à niveau un vieux backup
+
+    const r = restored.exec("SELECT pseudo FROM profil WHERE id = 1")
+    expect(r[0].values[0][0]).toBe('Lucile')
+  })
+
+  it('rejette un fichier qui n\'est pas une base SQLite', async () => {
+    const SQL = await loadSql()
+    const garbage = new Uint8Array([1, 2, 3, 4, 5])
+    expect(() => new SQL.Database(garbage)).toThrow()
+  })
+})
