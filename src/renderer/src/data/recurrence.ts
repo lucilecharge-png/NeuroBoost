@@ -54,3 +54,106 @@ export function parserRRULE(s: string): RecurrenceRule {
   }
   return rule
 }
+
+// ─── Helpers de date (heure locale, sans dépendance) ──────────────────────────
+
+const ORDRE_JOURS: JourSemaine[] = ['DI', 'LU', 'MA', 'ME', 'JE', 'VE', 'SA'] // index = getDay()
+
+function p2(n: number): string {
+  return n.toString().padStart(2, '0')
+}
+
+// 'YYYY-MM-DD HH:MM' -> Date locale
+function parseDateTime(s: string): Date {
+  const [d, t] = s.split(' ')
+  const [y, mo, da] = d.split('-').map(Number)
+  const [h, mi] = (t ?? '00:00').split(':').map(Number)
+  return new Date(y, mo - 1, da, h, mi, 0, 0)
+}
+
+function fmtDateTime(d: Date): string {
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`
+}
+
+function fmtDate(d: Date): string {
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`
+}
+
+// Compare uniquement la partie date (YYYY-MM-DD) de deux Date locales
+function jour(d: Date): string {
+  return fmtDate(d)
+}
+
+// Renvoie les débuts d'occurrences (chaînes 'YYYY-MM-DD HH:MM') dont le JOUR est
+// dans [fenetreDebut, fenetreFin] (inclusif). Garde-fou: 5000 itérations max.
+export function expanseRecurrence(
+  rule: RecurrenceRule,
+  debutMaitre: string,
+  fenetreDebut: string,
+  fenetreFin: string
+): string[] {
+  const depart = parseDateTime(debutMaitre)
+  const heures = depart.getHours()
+  const minutes = depart.getMinutes()
+  const untilJour = rule.fin?.type === 'date' ? rule.fin.date : null
+  const maxCount = rule.fin?.type === 'count' ? rule.fin.count : Infinity
+
+  const resultats: string[] = []
+  let nbGeneres = 0 // compteur global pour COUNT (depuis le maître)
+  const GARDE = 5000
+
+  const candidats: Date[] = []
+  const ajoute = (d: Date): void => {
+    const copy = new Date(d)
+    copy.setHours(heures, minutes, 0, 0)
+    candidats.push(copy)
+  }
+
+  if (rule.freq === 'hebdo' && rule.jours && rule.jours.length > 0) {
+    const joursVoulus = new Set(rule.jours)
+    const curseur = new Date(depart)
+    curseur.setHours(0, 0, 0, 0)
+    const decalLundi = (curseur.getDay() + 6) % 7 // 0 = lundi
+    curseur.setDate(curseur.getDate() - decalLundi)
+    let semaines = 0
+    while (candidats.length < GARDE) {
+      for (let i = 0; i < 7; i++) {
+        const jourCourant = new Date(curseur)
+        jourCourant.setDate(curseur.getDate() + i)
+        if (joursVoulus.has(ORDRE_JOURS[jourCourant.getDay()])) ajoute(jourCourant)
+      }
+      semaines += rule.intervalle
+      curseur.setDate(curseur.getDate() + 7 * rule.intervalle)
+      const apresUntil = untilJour !== null && jour(curseur) > untilJour
+      const apresFenetre = jour(curseur) > fenetreFin
+      if (apresFenetre && (untilJour === null || apresUntil)) break
+      if (semaines > GARDE) break
+    }
+    candidats.sort((a, b) => a.getTime() - b.getTime())
+  } else {
+    const curseur = new Date(depart)
+    for (let i = 0; i < GARDE; i++) {
+      ajoute(curseur)
+      if (rule.freq === 'quotidien') curseur.setDate(curseur.getDate() + rule.intervalle)
+      else if (rule.freq === 'mensuel') curseur.setMonth(curseur.getMonth() + rule.intervalle)
+      else if (rule.freq === 'annuel') curseur.setFullYear(curseur.getFullYear() + rule.intervalle)
+      else curseur.setDate(curseur.getDate() + rule.intervalle) // hebdo sans jours
+      const apresUntil = untilJour !== null && jour(curseur) > untilJour
+      const apresFenetre = jour(curseur) > fenetreFin
+      if (apresFenetre && (untilJour === null || apresUntil)) break
+    }
+  }
+
+  for (const d of candidats) {
+    const jd = jour(d)
+    if (jd < jour(depart)) continue // jamais avant le maître
+    if (untilJour !== null && jd > untilJour) break
+    nbGeneres++
+    if (nbGeneres > maxCount) break
+    if (jd >= fenetreDebut && jd <= fenetreFin) resultats.push(fmtDateTime(d))
+  }
+  return resultats
+}
+
+// Réexport interne pour agenda.ts (durée d'une occurrence)
+export { parseDateTime, fmtDateTime }
