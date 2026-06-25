@@ -485,17 +485,20 @@ export function saveRevueHebdo(
   semaine: string,
   reponses: RevueReponse[]
 ): { revue: RevueHebdoDTO; xpGagne: number } {
-  const xpGagne = 100
+  const estNouveauSave = !getRevueHebdo(db, semaine)
+  const xpGagne = estNouveauSave ? 100 : 0
+
   db.prepare(`
     INSERT INTO revue_hebdo (semaine, reponses, xp_attribue)
     VALUES (?, ?, ?)
     ON CONFLICT(semaine) DO UPDATE SET reponses = excluded.reponses
   `).run(semaine, JSON.stringify(reponses), xpGagne)
 
-  const joueur = db.prepare('SELECT * FROM profil WHERE id = 1').get() as { xp: number; niveau: number } | undefined
-  if (joueur) {
-    const newXp = joueur.xp + xpGagne
-    db.prepare('UPDATE profil SET xp = ? WHERE id = 1').run(newXp)
+  if (estNouveauSave) {
+    const joueur = db.prepare('SELECT xp FROM profil WHERE id = 1').get() as { xp: number } | undefined
+    if (joueur) {
+      db.prepare('UPDATE profil SET xp = ? WHERE id = 1').run(joueur.xp + xpGagne)
+    }
   }
 
   return { revue: getRevueHebdo(db, semaine)!, xpGagne }
