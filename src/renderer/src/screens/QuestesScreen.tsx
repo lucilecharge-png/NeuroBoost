@@ -87,6 +87,8 @@ export default function QuestesScreen(): JSX.Element {
               value={form.titre}
               onChange={(v) => setForm((f) => ({ ...f, titre: v }))}
               placeholder="Titre de la tâche..."
+              onKeyDown={(e) => { if (e.key === 'Enter') creer() }}
+              autoFocus
             />
             <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
               {NIVEAUX.map((n) => (

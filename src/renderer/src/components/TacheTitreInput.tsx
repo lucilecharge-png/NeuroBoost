@@ -4,6 +4,8 @@ interface Props {
   value: string
   onChange: (v: string) => void
   placeholder?: string
+  onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>
+  autoFocus?: boolean
 }
 
 const VERBES = new Set([
@@ -45,7 +47,7 @@ function genererSuggestions(titre: string): string[] {
   return [`Faire ${t}`, `Terminer ${t}`, `Commencer ${t}`]
 }
 
-export default function TacheTitreInput({ value, onChange, placeholder }: Props): JSX.Element {
+export default function TacheTitreInput({ value, onChange, placeholder, onKeyDown, autoFocus }: Props): JSX.Element {
   const [ignored, setIgnored] = useState(false)
 
   const afficherSuggestions = !ignored && demandeVerbe(value) && value.trim().length > 3
@@ -58,6 +60,8 @@ export default function TacheTitreInput({ value, onChange, placeholder }: Props)
         value={value}
         onChange={(e) => { onChange(e.target.value); setIgnored(false) }}
         placeholder={placeholder}
+        onKeyDown={onKeyDown}
+        autoFocus={autoFocus}
         style={{ width: '100%' }}
       />
       {afficherSuggestions && (
