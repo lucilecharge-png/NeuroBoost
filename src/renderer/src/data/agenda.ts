@@ -1,7 +1,7 @@
 // Logique d'agenda : CRUD catégories/événements, expansion des occurrences,
 // modes d'édition récurrente, rappels. Ne dépend que de l'interface `Db`.
 import type { Db } from './db'
-import type { CategorieDTO, EvenementDTO, EvenementInput, OccurrenceDTO, ModeRecurrence, RecurrenceRule } from '../../../shared/types'
+import type { CategorieDTO, EvenementDTO, EvenementInput, OccurrenceDTO, ModeRecurrence, RecurrenceRule, RappelOccurrence } from '../../../shared/types'
 import { serialiserRRULE, parserRRULE, expanseRecurrence, parseDateTime, fmtDateTime } from './recurrence'
 
 // ─── Catégories ───────────────────────────────────────────────────────────────
@@ -249,4 +249,26 @@ export function updateEvenement(
   )
   db.prepare('UPDATE evenement_exception SET evenement_id = ? WHERE evenement_id = ? AND date_occurrence >= ?')
     .run(Number(res.lastInsertRowid), masterId, dateOccurrence)
+}
+
+// ─── Rappels ──────────────────────────────────────────────────────────────────
+
+export function listProchainsRappels(db: Db, maintenant: string, horizonJours: number): RappelOccurrence[] {
+  const debutFenetre = maintenant.slice(0, 10)
+  const finDate = parseDateTime(`${debutFenetre} 00:00`)
+  finDate.setDate(finDate.getDate() + horizonJours)
+  const finFenetre = fmtDateTime(finDate).slice(0, 10)
+
+  const maintenantMs = parseDateTime(maintenant).getTime()
+  const rappels: RappelOccurrence[] = []
+
+  for (const o of listEvenements(db, debutFenetre, finFenetre)) {
+    if (o.rappelMin == null) continue
+    const instantRappel = parseDateTime(o.debut).getTime() - o.rappelMin * 60_000
+    if (instantRappel >= maintenantMs) {
+      rappels.push({ masterId: o.masterId, dateOccurrence: o.dateOccurrence, titre: o.titre, debut: o.debut, rappelMin: o.rappelMin })
+    }
+  }
+  rappels.sort((a, b) => a.debut.localeCompare(b.debut))
+  return rappels
 }
