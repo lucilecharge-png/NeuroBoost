@@ -9,7 +9,9 @@
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name=neuroboost"
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=neuroboost",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "localforage": "^1.10.0",
@@ -26,6 +28,7 @@
     "typescript": "^5.9.0",
     "vite": "^7.0.0",
     "vite-plugin-pwa": "^1.0.0",
+    "vitest": "^2.1.9",
     "wrangler": "^4.0.0"
   }
 }
