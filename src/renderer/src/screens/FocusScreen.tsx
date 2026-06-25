@@ -7,7 +7,7 @@ interface Props {
   onAbandonner: () => void
 }
 
-type Phase = 'choix-duree' | 'en-cours' | 'bloque' | 'fini'
+type Phase = 'choix-duree' | 'en-cours' | 'bloque' | 'fini' | 'post-it' | 'pause-corpo'
 
 const DUREES = [
   { label: '2 min', subtitle: 'Mode chrysalide 🦋', min: 2 },
@@ -38,6 +38,8 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
   const [debutMs, setDebutMs] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [microStep] = useState(() => MICRO_STEPS[Math.floor(Math.random() * MICRO_STEPS.length)])
+  const [postItNote, setPostItNote] = useState('')
+  const [phaseAvantPostIt, setPhaseAvantPostIt] = useState<Phase>('en-cours')
 
   function demarrer(min: number) {
     setDureePrevue(min)
@@ -69,13 +71,69 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
     await onTerminer(Math.max(1, dureeReelle))
   }
 
-  async function abandonner() {
+  function allerAuPostIt() {
     if (intervalRef.current) clearInterval(intervalRef.current)
-    if (sessionId && phase === 'en-cours') {
-      const dureeReelle = Math.round((Date.now() - debutMs) / 60000)
+    setPhaseAvantPostIt(phase)
+    setPhase('post-it')
+  }
+
+  async function executerAbandon() {
+    const dureeReelle = Math.round((Date.now() - debutMs) / 60000)
+    if (sessionId && phaseAvantPostIt === 'en-cours') {
       await window.api.terminerSession(sessionId, false, Math.max(1, dureeReelle))
     }
     onAbandonner()
+  }
+
+  async function confirmerPostIt() {
+    if (postItNote.trim()) {
+      await window.api.addCapture(`📝 ${tache.titre} — ${postItNote.trim()}`)
+    }
+    await executerAbandon()
+  }
+
+  async function abandonner() {
+    if (phase === 'en-cours' || phase === 'fini') {
+      allerAuPostIt()
+    } else {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      if (sessionId) {
+        const dureeReelle = Math.round((Date.now() - debutMs) / 60000)
+        await window.api.terminerSession(sessionId, false, Math.max(1, dureeReelle))
+      }
+      onAbandonner()
+    }
+  }
+
+  // ─── Post-it de transition ────────────────────────────────────────────────
+  if (phase === 'post-it') {
+    return (
+      <div className="focus-overlay">
+        <div style={{ fontSize: 40, marginBottom: 8 }}>📝</div>
+        <div className="focus-titre" style={{ maxWidth: 480 }}>Avant de partir…</div>
+        <div className="text-muted" style={{ textAlign: 'center', maxWidth: 400, marginBottom: 20 }}>
+          Laisse une note à ton futur toi. Où en étais-tu ? Quelle est la prochaine étape ?
+        </div>
+        <div style={{ width: '100%', maxWidth: 440 }}>
+          <textarea
+            className="textarea"
+            style={{ minHeight: 100, fontSize: 14, marginBottom: 12 }}
+            placeholder={`Ex : "J'en étais à la partie intro, la prochaine étape est de rédiger la section 2"`}
+            value={postItNote}
+            onChange={(e) => setPostItNote(e.target.value)}
+            autoFocus
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <button className="btn-launch" onClick={confirmerPostIt}>
+              💾 Sauvegarder et partir
+            </button>
+            <button className="btn-ghost" onClick={executerAbandon}>
+              Passer (quitter sans noter)
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // ─── Choix de durée ───────────────────────────────────────────────────────
