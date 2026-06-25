@@ -19,8 +19,7 @@ const VERBES = new Set([
 function demandeVerbe(titre: string): boolean {
   if (!titre.trim()) return false
   const premierMot = titre.trim().split(/\s+/)[0].toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-  return !VERBES.has(premierMot) && !VERBES.has(titre.trim().split(/\s+/)[0].toLowerCase())
+  return !VERBES.has(premierMot)
 }
 
 function genererSuggestions(titre: string): string[] {
