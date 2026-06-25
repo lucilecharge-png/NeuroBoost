@@ -5,7 +5,7 @@
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js'
 import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url'
 import localforage from 'localforage'
-import { MIGRATIONS } from './migrations'
+import { runMigrations } from './migrate'
 
 const STORE_KEY = 'neuroboost-db'
 
@@ -75,11 +75,6 @@ let SQL: SqlJsStatic | null = null
 let dbInstance: Database | null = null
 let dbWrapped: Db | null = null
 
-function userVersion(database: Database): number {
-  const r = database.exec('PRAGMA user_version')
-  return (r[0]?.values?.[0]?.[0] as number) ?? 0
-}
-
 export async function initDb(): Promise<Db> {
   if (dbWrapped) return dbWrapped
   SQL = await initSqlJs({ locateFile: () => wasmUrl })
@@ -88,17 +83,7 @@ export async function initDb(): Promise<Db> {
   dbInstance.run('PRAGMA foreign_keys = ON')
 
   // Migrations versionnées (même mécanique que la version Electron)
-  for (let v = userVersion(dbInstance); v < MIGRATIONS.length; v++) {
-    dbInstance.exec('BEGIN')
-    try {
-      dbInstance.exec(MIGRATIONS[v])
-      dbInstance.exec(`PRAGMA user_version = ${v + 1}`)
-      dbInstance.exec('COMMIT')
-    } catch (e) {
-      dbInstance.exec('ROLLBACK')
-      throw e
-    }
-  }
+  runMigrations(dbInstance)
 
   dbWrapped = wrap(dbInstance)
   await persist()
