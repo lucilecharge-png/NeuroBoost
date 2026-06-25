@@ -142,7 +142,7 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
 
   const montrerAlerteEnergie =
     phase === 'choix-duree' &&
-    !alerteEnergieIgnoree &&
+    (!alerteEnergieIgnoree || totalFocusMin >= 300) &&
     totalFocusMin >= 240
 
   // ─── Pause Corpo ──────────────────────────────────────────────────────────

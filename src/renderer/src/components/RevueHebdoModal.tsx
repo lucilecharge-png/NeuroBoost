@@ -60,7 +60,7 @@ export default function RevueHebdoModal({ onClose, onSaved }: Props): JSX.Elemen
     }))
     await window.api.saveRevueHebdo(semaine, reponsesArray)
     setSaving(false)
-    setCelebrer(true)
+    if (!revueExistante) setCelebrer(true)
     setTimeout(() => {
       onSaved()
       onClose()
