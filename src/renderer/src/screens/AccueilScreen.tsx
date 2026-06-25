@@ -15,7 +15,7 @@ const ENERGIE_LABELS: Record<number, { emoji: string; label: string }> = {
 }
 
 const ENERGIE_COULEUR: Record<string, string> = { micro: '#10b981', faible: '#a855f7', moyenne: '#f59e0b', haute: '#ef4444' }
-const ENERGIE_LABEL: Record<string, string> = { micro: '⚡ Micro', faible: '🌱 Légère', moyenne: '🔥 Moyenne', haute: '💪 Haute' }
+const ENERGIE_LABEL: Record<string, string> = { micro: '⚡ Micro', faible: '✨ Légère', moyenne: '🔥 Moyenne', haute: '💪 Haute' }
 
 function salutation(): string {
   const h = new Date().getHours()
@@ -41,6 +41,7 @@ export default function AccueilScreen(): JSX.Element {
   const [journeeSans, setJourneeSans] = useState(false)
   const [miniTache, setMiniTache] = useState<TacheDTO | null>(null)
   const [consistance, setConsistance] = useState<ConsistanceDTO | null>(null)
+  const [prenomInput, setPrenomInput] = useState('')
 
   const charger = useCallback(async () => {
     const [cx, m, e, p, js, c] = await Promise.all([
@@ -119,6 +120,14 @@ export default function AccueilScreen(): JSX.Element {
     await regenerer()
   }
 
+  async function enregistrerPrenom() {
+    const prenom = prenomInput.trim()
+    if (!prenom) return
+    const p = await window.api.setPseudo(prenom)
+    setProfil(p)
+    setPrenomInput('')
+  }
+
   async function ajouterCapture() {
     if (!capture.trim()) return
     await window.api.addCapture(capture.trim())
@@ -156,9 +165,33 @@ export default function AccueilScreen(): JSX.Element {
 
       {/* ── En-tête ── */}
       <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 4 }}>
-          {salutation()}, {profil?.pseudo ?? 'Héros'} {profil?.avatarEmoji}
-        </div>
+        {!profil || profil.pseudo === 'Héros' ? (
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 4 }}>
+              {salutation()} 👋
+            </div>
+            <div className="text-muted" style={{ marginBottom: 10, fontSize: 14 }}>
+              Comment tu t'appelles ? Je le retiendrai pour la prochaine fois.
+            </div>
+            <div className="row">
+              <input
+                className="input"
+                placeholder="Ton prénom..."
+                value={prenomInput}
+                onChange={(e) => setPrenomInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') enregistrerPrenom() }}
+                autoFocus
+              />
+              <button className="btn-primary" onClick={enregistrerPrenom} disabled={!prenomInput.trim()}>
+                ↵
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 4 }}>
+            {salutation()}, {profil.pseudo}
+          </div>
+        )}
         {streakBonus > 0 && (
           <div className="streak-badge" style={{ marginBottom: 8 }}>
             🔥 Streak bonus : +{streakBonus} 🪙 pour être revenu !

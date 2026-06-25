@@ -8,13 +8,15 @@ function xpPourNiveau(niveau: number): number {
   return niveau * 100
 }
 
+// Avatar « système solaire » : s'illumine et grandit au fil des niveaux,
+// de la nouvelle lune jusqu'au soleil.
 function avatarEmoji(niveau: number): string {
-  if (niveau >= 20) return '🦋'
+  if (niveau >= 20) return '☀️'
   if (niveau >= 15) return '🌟'
-  if (niveau >= 10) return '⚡'
-  if (niveau >= 6) return '🌳'
-  if (niveau >= 3) return '🌿'
-  return '🌱'
+  if (niveau >= 10) return '🪐'
+  if (niveau >= 6) return '🌕'
+  if (niveau >= 3) return '🌓'
+  return '🌑'
 }
 
 // ─── Profil ───────────────────────────────────────────────────────────────────
@@ -94,7 +96,8 @@ function tacheToDTO(r: Record<string, unknown>): TacheDTO {
     estPivot: Boolean(r.est_pivot),
     pourquoi: (r.pourquoi as string | null) ?? null,
     completedLe: (r.completee_le as string | null) ?? null,
-    creeLe: r.cree_le as string
+    creeLe: r.cree_le as string,
+    parentId: (r.parent_id as number | null) ?? null
   }
 }
 
@@ -124,7 +127,12 @@ export function regenererMissions(db: Db): TacheDTO[] {
 }
 
 export function listTaches(db: Db, filtres: { statut?: StatutTache; energie?: NiveauEnergie } = {}): TacheDTO[] {
-  let sql = 'SELECT * FROM taches WHERE 1=1'
+  let sql = `SELECT * FROM taches WHERE 1=1
+    AND NOT EXISTS (
+      SELECT 1 FROM taches enfant
+      WHERE enfant.parent_id = taches.id
+        AND enfant.statut IN ('active','en_cours')
+    )`
   const params: unknown[] = []
   if (filtres.statut) { sql += ' AND statut = ?'; params.push(filtres.statut) }
   if (filtres.energie) { sql += ' AND niveau_energie = ?'; params.push(filtres.energie) }
@@ -148,6 +156,37 @@ export function createTache(db: Db, input: { titre: string; description?: string
     input.pourquoi ?? null
   )
   return tacheToDTO(db.prepare('SELECT * FROM taches WHERE id = ?').get(res.lastInsertRowid) as Record<string, unknown>)
+}
+
+export function creerSousTaches(
+  db: Db,
+  parentId: number,
+  sousTaches: { titre: string; description?: string | null; niveauEnergie?: NiveauEnergie; dureeEstimeeMin?: number; categorie?: string | null; pourquoi?: string | null }[]
+): TacheDTO[] {
+  const ids: number[] = []
+  const insert = db.transaction(() => {
+    for (const st of sousTaches) {
+      const energie = st.niveauEnergie ?? 'faible'
+      const res = db.prepare(`
+        INSERT INTO taches (titre, description, niveau_energie, duree_estimee_min, xp_recompense, coins_recompense, categorie, pourquoi, parent_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        st.titre,
+        st.description ?? null,
+        energie,
+        st.dureeEstimeeMin ?? 15,
+        XP_PAR_ENERGIE[energie],
+        COINS_PAR_ENERGIE[energie],
+        st.categorie ?? null,
+        st.pourquoi ?? null,
+        parentId
+      )
+      ids.push(res.lastInsertRowid)
+    }
+  })
+  insert()
+  if (ids.length === 0) return []
+  return (db.prepare(`SELECT * FROM taches WHERE id IN (${ids.join(',')}) ORDER BY id ASC`).all() as Record<string, unknown>[]).map(tacheToDTO)
 }
 
 export function updateTache(db: Db, id: number, input: Partial<{ titre: string; description: string | null; niveauEnergie: NiveauEnergie; dureeEstimeeMin: number; categorie: string | null; pourquoi: string | null }>): TacheDTO {
@@ -215,7 +254,7 @@ export function terminerTache(db: Db, id: number, _dureeReelleMin?: number): Com
   const profilFinal = db.prepare('SELECT * FROM profil WHERE id = 1').get() as Record<string, unknown>
   if ((profilFinal.neurocoins as number) >= 100) debloques.push(..._debloquerAchievement(db, 'collecteur'))
 
-  return {
+  const resultat: CompletionResult = {
     profil: profilToDTO(profilFinal),
     xpGagne: xp,
     coinsGagnes: coins,
@@ -223,6 +262,31 @@ export function terminerTache(db: Db, id: number, _dureeReelleMin?: number): Com
     nouveauNiveau: levelUp ? nouveauNiveau : null,
     achievementsDebloques: debloques
   }
+
+  // Auto-complétion du parent : si cette tâche est une sous-tâche et qu'il ne
+  // reste plus aucune sous-tâche active pour le parent, on termine le parent
+  // (effet « projet bouclé ») et on cumule sa récompense.
+  const parentId = tache.parent_id as number | null
+  if (parentId) {
+    // Garde : ne pas re-terminer un parent déjà terminé (sinon double comptage XP).
+    const parent = db.prepare('SELECT statut FROM taches WHERE id = ?').get(parentId) as { statut: string } | undefined
+    const reste = db.prepare(
+      "SELECT COUNT(*) as n FROM taches WHERE parent_id = ? AND statut IN ('active','en_cours')"
+    ).get(parentId) as { n: number }
+    if (parent && parent.statut !== 'terminee' && reste.n === 0) {
+      const parentRes = terminerTache(db, parentId)
+      return {
+        profil: parentRes.profil,
+        xpGagne: resultat.xpGagne + parentRes.xpGagne,
+        coinsGagnes: resultat.coinsGagnes + parentRes.coinsGagnes,
+        levelUp: resultat.levelUp || parentRes.levelUp,
+        nouveauNiveau: parentRes.nouveauNiveau ?? resultat.nouveauNiveau,
+        achievementsDebloques: [...resultat.achievementsDebloques, ...parentRes.achievementsDebloques]
+      }
+    }
+  }
+
+  return resultat
 }
 
 export function ignorerTache(db: Db, id: number): void {

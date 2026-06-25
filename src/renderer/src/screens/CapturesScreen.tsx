@@ -3,7 +3,7 @@ import type { CaptureDTO, TacheDTO, NiveauEnergie } from '../../../shared/types'
 
 const NIVEAUX: { key: NiveauEnergie; label: string }[] = [
   { key: 'micro', label: '⚡ Micro < 5 min' },
-  { key: 'faible', label: '🌱 Légère 5-15 min' },
+  { key: 'faible', label: '✨ Légère 5-15 min' },
   { key: 'moyenne', label: '🔥 Moyenne 15-45 min' },
   { key: 'haute', label: '💪 Haute 45+ min' }
 ]

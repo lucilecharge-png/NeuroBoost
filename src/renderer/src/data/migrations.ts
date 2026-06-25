@@ -239,5 +239,100 @@ export const MIGRATIONS: string[] = [
     notifie  INTEGER NOT NULL DEFAULT 0,
     cree_le  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
   );
+  `,
+
+  // v8 — Agenda : catégories, événements, exceptions de récurrence
+  `
+  CREATE TABLE categorie (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    nom         TEXT NOT NULL,
+    couleur     TEXT NOT NULL,
+    emoji       TEXT,
+    est_systeme INTEGER NOT NULL DEFAULT 0
+  );
+
+  INSERT INTO categorie (nom, couleur, emoji, est_systeme) VALUES
+    ('Perso',   '#7c3aed', '🟣', 1),
+    ('Travail', '#3b82f6', '🔵', 1),
+    ('Santé',   '#10b981', '🟢', 1),
+    ('Admin',   '#f59e0b', '🟡', 1);
+
+  CREATE TABLE evenement (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    titre        TEXT NOT NULL,
+    debut        TEXT NOT NULL,
+    fin          TEXT NOT NULL,
+    all_day      INTEGER NOT NULL DEFAULT 0,
+    categorie_id INTEGER REFERENCES categorie(id) ON DELETE SET NULL,
+    description  TEXT,
+    tache_id     INTEGER REFERENCES taches(id) ON DELETE SET NULL,
+    recurrence   TEXT,
+    rappel_min   INTEGER,
+    source       TEXT NOT NULL DEFAULT 'local',
+    google_id    TEXT,
+    cree_le      TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  );
+  CREATE INDEX idx_evenement_debut ON evenement(debut);
+
+  CREATE TABLE evenement_exception (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    evenement_id    INTEGER NOT NULL REFERENCES evenement(id) ON DELETE CASCADE,
+    date_occurrence TEXT NOT NULL,
+    type            TEXT NOT NULL CHECK (type IN ('supprimee','deplacee')),
+    override_id     INTEGER REFERENCES evenement(id) ON DELETE CASCADE
+  );
+  CREATE INDEX idx_exception_evenement ON evenement_exception(evenement_id);
+  `,
+
+  // v9 — Sous-tâches : relation parent/enfant
+  `
+  ALTER TABLE taches ADD COLUMN parent_id INTEGER REFERENCES taches(id) ON DELETE CASCADE;
+  CREATE INDEX idx_taches_parent ON taches(parent_id);
+  `,
+
+  // v10 — Quêtes exemples supplémentaires : perso, travail, admin
+  `
+  INSERT INTO taches (titre, description, niveau_energie, duree_estimee_min, xp_recompense, coins_recompense, categorie) VALUES
+    -- Perso / prendre soin de soi
+    ('Boire un grand verre d''eau maintenant',
+     'Petit geste pour le corps : un verre d''eau, tout de suite, avant de repartir.',
+     'micro', 2, 5, 3, 'Perso'),
+    ('Noter 3 trucs qui ont été bien aujourd''hui',
+     'Trois petites victoires ou bons moments de la journée — même minuscules.',
+     'micro', 5, 5, 3, 'Perso'),
+    ('Préparer ses affaires pour demain matin',
+     'Sortir les vêtements, le sac, le sport — pour démarrer la journée sans friction.',
+     'faible', 10, 15, 7, 'Perso'),
+    ('Ranger un coin qui traîne depuis trop longtemps',
+     'Choisir UN endroit (bureau, table, étagère) et le remettre d''aplomb en une fois.',
+     'moyenne', 25, 30, 15, 'Perso'),
+
+    -- Travail
+    ('Noter la première micro-action de la tâche qui fait peur',
+     'Pas la tâche entière : juste la toute première action concrète de 2 minutes.',
+     'micro', 5, 5, 3, 'Travail'),
+    ('Vider sa boîte mail jusqu''à inbox zéro',
+     'Traiter, archiver ou supprimer — l''objectif est une boîte de réception propre.',
+     'faible', 20, 15, 7, 'Travail'),
+    ('Avancer le dossier prioritaire pendant 25 min (1 Pomodoro)',
+     'Un seul créneau de 25 minutes concentré sur le dossier le plus important. Pas plus.',
+     'moyenne', 25, 30, 15, 'Travail'),
+    ('Rédiger la première version d''un livrable important',
+     'Un premier jet imparfait mais complet — on peaufinera plus tard.',
+     'haute', 60, 60, 30, 'Travail'),
+
+    -- Admin / paperasse
+    ('Payer la facture en attente',
+     'Régler la facture qui traîne, et la classer dans la foulée.',
+     'micro', 5, 5, 3, 'Admin'),
+    ('Prendre ou replanifier un rendez-vous (médecin, dentiste...)',
+     'Le coup de fil ou la prise de RDV en ligne qu''on repousse depuis des semaines.',
+     'faible', 10, 15, 7, 'Admin'),
+    ('Classer les papiers et justificatifs du mois',
+     'Trier, scanner si besoin et ranger les documents importants du mois.',
+     'faible', 20, 15, 7, 'Admin'),
+    ('Faire le point sur les abonnements et en résilier 1',
+     'Lister les abonnements en cours, repérer l''inutile et en résilier au moins un.',
+     'moyenne', 30, 30, 15, 'Admin');
   `
 ]

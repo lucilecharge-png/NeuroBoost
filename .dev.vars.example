@@ -1,0 +1,3 @@
+# Copie ce fichier en .dev.vars (gitignoré) et renseigne ta clé.
+# Utilisé par `wrangler pages dev`. NE PAS committer .dev.vars.
+ANTHROPIC_API_KEY=sk-ant-...

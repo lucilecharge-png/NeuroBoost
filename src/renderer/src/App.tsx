@@ -8,15 +8,18 @@ import CoachingScreen from './screens/CoachingScreen'
 import TimerScreen from './screens/TimerScreen'
 import TunnelScreen from './screens/TunnelScreen'
 import RendezVousScreen from './screens/RendezVousScreen'
+import AgendaScreen from './screens/AgendaScreen'
 import RituelEcran from './components/RituelEcran'
+import BackupModal from './components/BackupModal'
 import { getRituelConfig, phaseActuelle, rituelFaitAujourdhui, marquerRituelFait, type Phase } from './data/rituels'
 
-type Onglet = 'accueil' | 'quetes' | 'tunnel' | 'captures' | 'coaching' | 'timer' | 'rendezvous' | 'recompenses'
+type Onglet = 'accueil' | 'quetes' | 'agenda' | 'tunnel' | 'captures' | 'coaching' | 'timer' | 'rendezvous' | 'recompenses'
 
 export default function App(): JSX.Element {
   const [onglet, setOnglet] = useState<Onglet>('accueil')
   const [profil, setProfil] = useState<ProfilDTO | null>(null)
   const [rituel, setRituel] = useState<Phase | null>(null)
+  const [backupOuvert, setBackupOuvert] = useState(false)
 
   useEffect(() => {
     window.api.getProfil().then(setProfil)
@@ -57,6 +60,7 @@ export default function App(): JSX.Element {
           onFermer={() => { marquerRituelFait(rituel); setRituel(null) }}
         />
       )}
+      {backupOuvert && <BackupModal onFermer={() => setBackupOuvert(false)} />}
 
       {/* ── Sidebar ── */}
       <nav className="sidebar">
@@ -94,6 +98,7 @@ export default function App(): JSX.Element {
         {/* Navigation */}
         {nav('accueil', '⌂', 'Accueil')}
         {nav('quetes', '⚔️', 'Toutes mes quêtes')}
+        {nav('agenda', '📅', 'Agenda')}
         {nav('tunnel', '🔭', 'Le Tunnel')}
         {nav('captures', '💡', 'Cerveau rapide')}
 
@@ -106,6 +111,10 @@ export default function App(): JSX.Element {
           <span className="nav-icon">🌙</span>
           Rituel
         </button>
+        <button className="nav-item" onClick={() => setBackupOuvert(true)}>
+          <span className="nav-icon">💾</span>
+          Sauvegarde
+        </button>
         {nav('recompenses', '🏆', 'Récompenses')}
       </nav>
 
@@ -113,6 +122,7 @@ export default function App(): JSX.Element {
       <main className="main-content">
         {onglet === 'accueil' && <AccueilScreen />}
         {onglet === 'quetes' && <QuestesScreen />}
+        {onglet === 'agenda' && <AgendaScreen />}
         {onglet === 'tunnel' && <TunnelScreen />}
         {onglet === 'captures' && <CapturesScreen />}
         {onglet === 'coaching' && <CoachingScreen />}

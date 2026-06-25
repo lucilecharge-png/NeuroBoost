@@ -5,7 +5,7 @@
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js'
 import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url'
 import localforage from 'localforage'
-import { MIGRATIONS } from './migrations'
+import { runMigrations } from './migrate'
 
 const STORE_KEY = 'neuroboost-db'
 
@@ -75,11 +75,6 @@ let SQL: SqlJsStatic | null = null
 let dbInstance: Database | null = null
 let dbWrapped: Db | null = null
 
-function userVersion(database: Database): number {
-  const r = database.exec('PRAGMA user_version')
-  return (r[0]?.values?.[0]?.[0] as number) ?? 0
-}
-
 export async function initDb(): Promise<Db> {
   if (dbWrapped) return dbWrapped
   SQL = await initSqlJs({ locateFile: () => wasmUrl })
@@ -88,17 +83,7 @@ export async function initDb(): Promise<Db> {
   dbInstance.run('PRAGMA foreign_keys = ON')
 
   // Migrations versionnées (même mécanique que la version Electron)
-  for (let v = userVersion(dbInstance); v < MIGRATIONS.length; v++) {
-    dbInstance.exec('BEGIN')
-    try {
-      dbInstance.exec(MIGRATIONS[v])
-      dbInstance.exec(`PRAGMA user_version = ${v + 1}`)
-      dbInstance.exec('COMMIT')
-    } catch (e) {
-      dbInstance.exec('ROLLBACK')
-      throw e
-    }
-  }
+  runMigrations(dbInstance)
 
   dbWrapped = wrap(dbInstance)
   await persist()
@@ -116,4 +101,39 @@ export function schedulePersist(): void {
 export async function persist(): Promise<void> {
   if (!dbInstance) return
   await localforage.setItem(STORE_KEY, dbInstance.export())
+}
+
+// ── Sauvegarde / restauration par fichier ──
+
+// Sérialise la base courante en fichier SQLite complet (Uint8Array).
+export function exportDb(): Uint8Array {
+  if (!dbInstance) throw new Error('Base non initialisée')
+  return dbInstance.export()
+}
+
+// Remplace la base courante par le contenu d'un fichier importé.
+// Sûreté : on ne touche dbInstance qu'après validation réussie du fichier.
+// IMPORTANT : après un import réussi, l'appelant DOIT recharger la page
+// (window.location.reload). window.api (api.ts) garde une référence vers
+// l'ancien wrapper ; seul un rechargement réinitialise tout proprement.
+export async function importDb(bytes: Uint8Array): Promise<void> {
+  if (!SQL || !dbInstance) throw new Error('Base non initialisée')
+  const next = new SQL.Database(bytes)
+  // sql.js ne valide pas les octets à la construction (lecture paresseuse de
+  // l'en-tête SQLite). On force une lecture du schéma : ceci lève si le fichier
+  // n'est pas une base SQLite valide ("file is not a database") OU si ce n'est
+  // pas une sauvegarde NeuroBoost (table `profil` absente). On valide AVANT
+  // runMigrations (sinon les migrations recréeraient le schéma sur une base
+  // vide, fabriquant une fausse base "valide") et AVANT de remplacer dbInstance.
+  try {
+    next.exec('SELECT 1 FROM profil LIMIT 1')
+  } catch (err) {
+    next.close()
+    throw new Error('Fichier de sauvegarde invalide ou illisible', { cause: err })
+  }
+  next.run('PRAGMA foreign_keys = ON')
+  runMigrations(next) // met à niveau un backup d'une version antérieure
+  dbInstance = next
+  dbWrapped = wrap(next)
+  await persist()
 }
