@@ -3,6 +3,7 @@ import type { TacheDTO, ProfilDTO, EnergieDTO, CompletionResult, NiveauEnergieJo
 import Celebration from '../components/Celebration'
 import FocusScreen from './FocusScreen'
 import TemplatesModal from '../components/TemplatesModal'
+import RevueHebdoModal, { getISOWeek } from '../components/RevueHebdoModal'
 
 const ENERGIE_LABELS: Record<number, { emoji: string; label: string }> = {
   1: { emoji: '😴', label: 'À plat' },
@@ -32,6 +33,8 @@ export default function AccueilScreen(): JSX.Element {
   const [loading, setLoading] = useState(true)
   const [capture, setCapture] = useState('')
   const [showTemplates, setShowTemplates] = useState(false)
+  const [showRevue, setShowRevue] = useState(false)
+  const [revueFaite, setRevueFaite] = useState(false)
 
   const charger = useCallback(async () => {
     const [cx, m, e] = await Promise.all([
@@ -47,6 +50,11 @@ export default function AccueilScreen(): JSX.Element {
   }, [])
 
   useEffect(() => { charger() }, [charger])
+
+  useEffect(() => {
+    const semaine = getISOWeek(new Date())
+    window.api.getRevueHebdo(semaine).then((r) => setRevueFaite(!!r)).catch(console.error)
+  }, [])
 
   async function setEnergie(n: NiveauEnergieJour) {
     const e = await window.api.setEnergieJour(n)
@@ -226,6 +234,31 @@ export default function AccueilScreen(): JSX.Element {
           onSelectTemplate={appliquerTemplate}
         />
       )}
+
+      {showRevue && (
+        <RevueHebdoModal
+          onClose={() => setShowRevue(false)}
+          onSaved={() => setRevueFaite(true)}
+        />
+      )}
+
+      <button
+        className={revueFaite ? 'btn-ghost' : 'btn-launch'}
+        style={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          borderRadius: 999,
+          padding: '12px 20px',
+          fontSize: 14,
+          fontWeight: 700,
+          zIndex: 50,
+          background: revueFaite ? 'rgba(16,185,129,.15)' : undefined
+        }}
+        onClick={() => setShowRevue(true)}
+      >
+        {revueFaite ? '✅ Revue faite' : '📅 Revue de la semaine'}
+      </button>
     </div>
   )
 }
