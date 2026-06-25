@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import type { TacheDTO, NiveauEnergie, TacheInput, CompletionResult } from '../../../shared/types'
 import Celebration from '../components/Celebration'
 import FocusScreen from './FocusScreen'
+import TacheTitreInput from '../components/TacheTitreInput'
 
 const NIVEAUX: { key: NiveauEnergie; label: string; desc: string; couleur: string }[] = [
   { key: 'micro', label: '⚡ Micro', desc: '< 5 min', couleur: '#10b981' },
@@ -82,13 +83,10 @@ export default function QuestesScreen(): JSX.Element {
         <div className="card" style={{ marginBottom: 20 }}>
           <div style={{ fontWeight: 700, marginBottom: 12 }}>Nouvelle quête</div>
           <div className="col">
-            <input
-              className="input"
-              placeholder="Titre de la tâche..."
+            <TacheTitreInput
               value={form.titre}
-              onChange={(e) => setForm((f) => ({ ...f, titre: e.target.value }))}
-              onKeyDown={(e) => { if (e.key === 'Enter') creer() }}
-              autoFocus
+              onChange={(v) => setForm((f) => ({ ...f, titre: v }))}
+              placeholder="Titre de la tâche..."
             />
             <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
               {NIVEAUX.map((n) => (
