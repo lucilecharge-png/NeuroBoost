@@ -239,5 +239,48 @@ export const MIGRATIONS: string[] = [
     notifie  INTEGER NOT NULL DEFAULT 0,
     cree_le  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
   );
+  `,
+
+  // v8 — Agenda : catégories, événements, exceptions de récurrence
+  `
+  CREATE TABLE categorie (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    nom         TEXT NOT NULL,
+    couleur     TEXT NOT NULL,
+    emoji       TEXT,
+    est_systeme INTEGER NOT NULL DEFAULT 0
+  );
+
+  INSERT INTO categorie (nom, couleur, emoji, est_systeme) VALUES
+    ('Perso',   '#7c3aed', '🟣', 1),
+    ('Travail', '#3b82f6', '🔵', 1),
+    ('Santé',   '#10b981', '🟢', 1),
+    ('Admin',   '#f59e0b', '🟡', 1);
+
+  CREATE TABLE evenement (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    titre        TEXT NOT NULL,
+    debut        TEXT NOT NULL,
+    fin          TEXT NOT NULL,
+    all_day      INTEGER NOT NULL DEFAULT 0,
+    categorie_id INTEGER REFERENCES categorie(id) ON DELETE SET NULL,
+    description  TEXT,
+    tache_id     INTEGER REFERENCES taches(id) ON DELETE SET NULL,
+    recurrence   TEXT,
+    rappel_min   INTEGER,
+    source       TEXT NOT NULL DEFAULT 'local',
+    google_id    TEXT,
+    cree_le      TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  );
+  CREATE INDEX idx_evenement_debut ON evenement(debut);
+
+  CREATE TABLE evenement_exception (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    evenement_id    INTEGER NOT NULL REFERENCES evenement(id) ON DELETE CASCADE,
+    date_occurrence TEXT NOT NULL,
+    type            TEXT NOT NULL CHECK (type IN ('supprimee','deplacee')),
+    override_id     INTEGER REFERENCES evenement(id) ON DELETE CASCADE
+  );
+  CREATE INDEX idx_exception_evenement ON evenement_exception(evenement_id);
   `
 ]
