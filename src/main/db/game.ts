@@ -491,7 +491,7 @@ export function saveRevueHebdo(
   db.prepare(`
     INSERT INTO revue_hebdo (semaine, reponses, xp_attribue)
     VALUES (?, ?, ?)
-    ON CONFLICT(semaine) DO UPDATE SET reponses = excluded.reponses
+    ON CONFLICT(semaine) DO UPDATE SET reponses = excluded.reponses, xp_attribue = excluded.xp_attribue
   `).run(semaine, JSON.stringify(reponses), xpGagne)
 
   if (estNouveauSave) {
