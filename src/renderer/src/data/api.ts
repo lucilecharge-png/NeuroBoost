@@ -1,7 +1,7 @@
 // Implémentation navigateur de NeuroBoostApi : remplace l'IPC Electron + preload.
 // Toutes les méthodes appellent la logique de jeu (game.ts) sur la DB sql.js,
 // puis une persistance différée écrit la base dans IndexedDB.
-import type { NeuroBoostApi, RendezVousDTO } from '../../../shared/types'
+import type { NeuroBoostApi, RendezVousDTO, SousTacheProposee } from '../../../shared/types'
 import * as G from './game'
 import { initDb, schedulePersist, persist, type Db } from './db'
 
@@ -66,6 +66,19 @@ const rawApi: NeuroBoostApi = {
     G.ignorerTache(db, id)
   },
   regenererMissions: async () => G.regenererMissions(db),
+
+  // Découpe en sous-tâches
+  decouperTache: async (input, nombre) => {
+    const resp = await fetch('/api/decoupe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...input, nombre })
+    })
+    if (!resp.ok) throw new Error(`decoupe ${resp.status}`)
+    const data = (await resp.json()) as { sousTaches?: SousTacheProposee[] }
+    return data.sousTaches ?? []
+  },
+  creerSousTaches: async (parentId, sousTaches) => G.creerSousTaches(db, parentId, sousTaches),
 
   // Focus
   demarrerSession: async (tacheId, duree) => G.demarrerSession(db, tacheId, duree),
