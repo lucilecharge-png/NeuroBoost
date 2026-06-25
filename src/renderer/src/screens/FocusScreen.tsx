@@ -40,6 +40,8 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
   const [debutMs, setDebutMs] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [microStep] = useState(() => MICRO_STEPS[Math.floor(Math.random() * MICRO_STEPS.length)])
+  const [totalFocusMin, setTotalFocusMin] = useState(0)
+  const [alerteEnergieIgnoree, setAlerteEnergieIgnoree] = useState(false)
   const [postItNote, setPostItNote] = useState('')
   const [phaseAvantPostIt, setPhaseAvantPostIt] = useState<Phase>('en-cours')
   const [elapsedS, setElapsedS] = useState(0)
@@ -80,6 +82,15 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
     if (intervalRef.current) clearInterval(intervalRef.current)
     setPhase('pause-corpo')
   }, [elapsedS, phase, dureePrevue])
+
+  useEffect(() => {
+    window.api.listSessionsAujourdHui().then((sessions) => {
+      const total = sessions
+        .filter((s) => s.completee && s.dureeReelleMin !== null)
+        .reduce((sum, s) => sum + (s.dureeReelleMin ?? 0), 0)
+      setTotalFocusMin(total)
+    })
+  }, [])
 
   async function terminer() {
     if (intervalRef.current) clearInterval(intervalRef.current)
@@ -128,6 +139,11 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
       onAbandonner()
     }
   }
+
+  const montrerAlerteEnergie =
+    phase === 'choix-duree' &&
+    !alerteEnergieIgnoree &&
+    totalFocusMin >= 240
 
   // ─── Pause Corpo ──────────────────────────────────────────────────────────
   if (phase === 'pause-corpo') {
@@ -200,6 +216,32 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
         <button className="btn-ghost" style={{ position: 'absolute', top: 20, left: 20, fontSize: 13 }} onClick={onAbandonner}>
           ← Retour
         </button>
+        {montrerAlerteEnergie && (
+          <div style={{ width: '100%', maxWidth: 440, padding: '16px', background: 'rgba(239,68,68,.1)', border: '2px solid rgba(239,68,68,.4)', borderRadius: 'var(--radius-lg)', marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 16, color: '#ef4444', marginBottom: 8 }}>
+              🔋 Alerte Énergie
+            </div>
+            <div style={{ fontSize: 13, lineHeight: 1.7, marginBottom: 12 }}>
+              Tu as déjà {totalFocusMin} minutes de focus aujourd'hui. Continuer risque de vider ta batterie pour demain. Ton cerveau TDAH a besoin de récupération.
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                className="btn-ghost"
+                style={{ flex: 1, fontSize: 13 }}
+                onClick={() => onAbandonner()}
+              >
+                ← M'arrêter ici
+              </button>
+              <button
+                className="btn-ghost"
+                style={{ flex: 1, fontSize: 12, color: 'var(--text-muted)' }}
+                onClick={() => setAlerteEnergieIgnoree(true)}
+              >
+                Je comprends, je continue
+              </button>
+            </div>
+          </div>
+        )}
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>⏱</div>
           <div className="focus-titre">{tache.titre}</div>
