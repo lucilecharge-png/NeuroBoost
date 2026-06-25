@@ -55,7 +55,14 @@ describe('round-trip de sauvegarde (mécanisme export/import)', () => {
 
   it('rejette un fichier qui n\'est pas une base SQLite', async () => {
     const SQL = await loadSql()
-    const garbage = new Uint8Array([1, 2, 3, 4, 5])
-    expect(() => new SQL.Database(garbage)).toThrow()
+    const garbage = new SQL.Database(new Uint8Array([1, 2, 3, 4, 5]))
+    // Le constructeur ne valide pas ; la lecture du schéma doit lever.
+    expect(() => garbage.exec('SELECT 1 FROM profil LIMIT 1')).toThrow()
+  })
+
+  it('rejette une base SQLite valide qui n\'est pas une sauvegarde NeuroBoost', async () => {
+    const SQL = await loadSql()
+    const vide = new SQL.Database() // base SQLite valide mais sans table profil
+    expect(() => vide.exec('SELECT 1 FROM profil LIMIT 1')).toThrow()
   })
 })
