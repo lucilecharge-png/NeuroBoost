@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { expanseRecurrence } from '../recurrence'
-import type { RecurrenceRule } from '../../../shared/types'
+import type { RecurrenceRule } from '../../../../shared/types'
 
 const debutMaitre = '2026-06-01 09:00' // lundi 1er juin 2026
 

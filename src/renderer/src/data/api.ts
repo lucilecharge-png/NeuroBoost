@@ -3,9 +3,16 @@
 // puis une persistance différée écrit la base dans IndexedDB.
 import type { NeuroBoostApi, RendezVousDTO } from '../../../shared/types'
 import * as G from './game'
+import * as A from './agenda'
 import { initDb, schedulePersist, persist, type Db } from './db'
 
 let db: Db
+
+function maintenantLocal(): string {
+  const d = new Date()
+  const p = (n: number) => n.toString().padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
 
 // ─── Rendez-vous Fantômes : notifications navigateur ──────────────────────────
 
@@ -40,6 +47,33 @@ function annuler(id: number): void {
   if (t) {
     clearTimeout(t)
     timers.delete(id)
+  }
+}
+
+// ─── Rappels d'agenda : planification glissante (horizon 14 j) ─────────────────
+const HORIZON_RAPPELS = 14
+const timersAgenda = new Map<string, ReturnType<typeof setTimeout>>()
+
+function cleRappel(masterId: number, dateOccurrence: string): string {
+  return `${masterId}|${dateOccurrence}`
+}
+
+function notifierAgenda(titre: string, debut: string): void {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification(`⏰ ${titre}`, { body: `Commence à ${debut.slice(11)}` })
+  }
+}
+
+function replanifierRappelsAgenda(): void {
+  for (const t of timersAgenda.values()) clearTimeout(t)
+  timersAgenda.clear()
+  const maintenant = maintenantLocal()
+  for (const r of A.listProchainsRappels(db, maintenant, HORIZON_RAPPELS)) {
+    const instant = new Date(r.debut.replace(' ', 'T')).getTime() - r.rappelMin * 60_000
+    const delai = instant - Date.now()
+    if (delai < 0 || delai > MAX_DELAY) continue
+    const cle = cleRappel(r.masterId, r.dateOccurrence)
+    timersAgenda.set(cle, setTimeout(() => { notifierAgenda(r.titre, r.debut); timersAgenda.delete(cle) }, delai))
   }
 }
 
@@ -155,7 +189,29 @@ const rawApi: NeuroBoostApi = {
 
   // Revue hebdomadaire
   getRevueHebdo: async (semaine) => G.getRevueHebdo(db, semaine),
-  saveRevueHebdo: async (semaine, reponses) => G.saveRevueHebdo(db, semaine, reponses)
+  saveRevueHebdo: async (semaine, reponses) => G.saveRevueHebdo(db, semaine, reponses),
+
+  // Agenda
+  listCategories: async () => A.listCategories(db),
+  createCategorie: async (nom, couleur, emoji) => A.createCategorie(db, nom, couleur, emoji),
+  deleteCategorie: async (id) => {
+    A.deleteCategorie(db, id)
+  },
+  listEvenements: async (debut, fin) => A.listEvenements(db, debut, fin),
+  createEvenement: async (input) => {
+    if ('Notification' in window && Notification.permission === 'default') void Notification.requestPermission()
+    const ev = A.createEvenement(db, input)
+    replanifierRappelsAgenda()
+    return ev
+  },
+  updateEvenement: async (masterId, dateOccurrence, mode, input) => {
+    A.updateEvenement(db, masterId, dateOccurrence, mode, input)
+    replanifierRappelsAgenda()
+  },
+  deleteEvenement: async (masterId, dateOccurrence, mode) => {
+    A.deleteEvenement(db, masterId, dateOccurrence, mode)
+    replanifierRappelsAgenda()
+  }
 }
 
 // Persiste après chaque appel (différé/coalescé — voir schedulePersist).
@@ -175,6 +231,7 @@ export async function initApi(): Promise<void> {
   db = await initDb()
   // Replanifie les rendez-vous non encore notifiés
   for (const rv of G.listRendezVousAPlanifier(db)) planifier(rv)
+  replanifierRappelsAgenda()
   await persist()
   window.api = api
 }
