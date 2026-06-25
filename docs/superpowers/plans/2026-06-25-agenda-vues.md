@@ -21,7 +21,7 @@
 | `src/renderer/src/data/migrations.ts` *(modifié)* | +1 entrée v8 : `categorie`, `evenement`, `evenement_exception` + seed |
 | `src/renderer/src/data/recurrence.ts` *(créé)* | `RecurrenceRule ⇄ RRULE` + expansion d'occurrences (fonctions pures) |
 | `src/renderer/src/data/agenda.ts` *(créé)* | CRUD catégories/événements, `listEvenements` (expansion+exceptions), modes d'édition, rappels |
-| `src/renderer/src/shared/types.ts` *(modifié)* | DTO agenda + ajouts à `NeuroBoostApi` |
+| `src/shared/types.ts` *(modifié)* | DTO agenda + ajouts à `NeuroBoostApi` |
 | `src/renderer/src/data/api.ts` *(modifié)* | Branche les méthodes agenda + planifie les rappels (réutilise le mécanisme `setTimeout`+`Notification`) |
 | `src/renderer/src/data/agendaNav.ts` *(créé)* | Helpers purs de navigation/plages de dates par vue (testés) |
 | `src/renderer/src/screens/AgendaScreen.tsx` *(créé)* | Conteneur : barre nav + sélecteur de vue + moteur actif |
@@ -33,6 +33,13 @@
 | `src/renderer/src/components/agenda/timelineLayout.ts` *(créé)* | Calcul pur top/height d'une occurrence (testé) |
 | `src/renderer/src/App.tsx` *(modifié)* | Onglet sidebar 📅 Agenda |
 | `src/renderer/src/assets/main.css` *(modifié)* | Styles agenda |
+
+> **⚠️ CORRECTION DE CHEMINS (importante)** : le fichier de types est en réalité `src/shared/types.ts` (et non `src/renderer/src/shared/types.ts`). Les imports doivent donc suivre la profondeur de `game.ts` :
+> - depuis `src/renderer/src/data/*` (recurrence.ts, agenda.ts, agendaNav.ts) → `'../../../shared/types'`
+> - depuis `src/renderer/src/screens/*` (AgendaScreen.tsx) → `'../../../shared/types'`
+> - depuis `src/renderer/src/components/agenda/*` (nouveau dossier, 1 niveau plus profond) → `'../../../../shared/types'`
+>
+> Les blocs de code ci-dessous écrivent parfois `'../shared/types'` ou `'../../shared/types'` — **remplacer par le chemin correct ci-dessus**. (Les imports entre fichiers `data/` comme `'./recurrence'`, `'./db'` et `'../data/agendaNav'` / `'../components/agenda/...'` depuis les écrans sont, eux, corrects.)
 
 **Note de convention** (vérifiée dans le code existant) :
 - Toutes les fonctions data prennent `db: Db` en 1er argument et utilisent `db.prepare(sql).run/get/all(...)`.
