@@ -30,7 +30,7 @@ export default function QuestesScreen(): JSX.Element {
 
   async function creer() {
     if (!form.titre.trim()) return
-    await window.api.createTache({ ...form, titre: form.titre.trim() })
+    await window.api.createTache({ ...form, titre: form.titre.trim(), pourquoi: form.pourquoi?.trim() || null })
     setForm({ titre: '', niveauEnergie: 'faible', dureeEstimeeMin: 10 })
     setShowForm(false)
     charger()
@@ -45,6 +45,11 @@ export default function QuestesScreen(): JSX.Element {
   async function supprimer(id: number) {
     await window.api.deleteTache(id)
     setTaches((prev) => prev.filter((x) => x.id !== id))
+  }
+
+  async function togglePivot(t: TacheDTO) {
+    await window.api.setPivot(t.id, !t.estPivot)
+    await charger()
   }
 
   if (focusTache) {
@@ -123,6 +128,18 @@ export default function QuestesScreen(): JSX.Element {
               />
               <span className="text-muted">min</span>
             </div>
+            <div>
+              <label style={{ color: 'var(--text-muted)', fontSize: 13, display: 'block', marginBottom: 4 }}>
+                💛 Pourquoi ça compte pour toi ? <span style={{ fontStyle: 'italic' }}>(optionnel)</span>
+              </label>
+              <textarea
+                className="textarea"
+                style={{ minHeight: 60 }}
+                placeholder="Comment tu te sentiras une fois fait ? Pourquoi c'est important ?"
+                value={form.pourquoi ?? ''}
+                onChange={(e) => setForm((f) => ({ ...f, pourquoi: e.target.value }))}
+              />
+            </div>
             <button className="btn-launch" onClick={creer} disabled={!form.titre.trim()}>
               ✚ Ajouter la quête
             </button>
@@ -183,6 +200,7 @@ export default function QuestesScreen(): JSX.Element {
                 <div className="row-between">
                   <div style={{ flex: 1 }}>
                     <div className="row" style={{ gap: 8, marginBottom: 4 }}>
+                      {t.estPivot && <span className="tag" style={{ background: 'rgba(245,158,11,.18)', color: 'var(--gold)' }}>👑 Pivot</span>}
                       {t.estMissionJour && <span className="tag">Mission du jour</span>}
                       <span style={{ fontSize: 11, fontWeight: 700, color: n.couleur }}>{n.label}</span>
                       <span className="text-muted">⏱ {t.dureeEstimeeMin} min</span>
@@ -191,6 +209,14 @@ export default function QuestesScreen(): JSX.Element {
                     {t.description && <div className="text-muted" style={{ marginTop: 3 }}>{t.description}</div>}
                   </div>
                   <div className="row" style={{ gap: 6 }}>
+                    <button
+                      className="btn-icon"
+                      title={t.estPivot ? 'Tâche pivot' : 'Définir comme tâche pivot'}
+                      style={{ color: t.estPivot ? 'var(--gold)' : 'var(--text-muted)' }}
+                      onClick={() => togglePivot(t)}
+                    >
+                      {t.estPivot ? '★' : '☆'}
+                    </button>
                     <button className="btn-icon" onClick={() => supprimer(t.id)} title="Supprimer">🗑</button>
                   </div>
                 </div>

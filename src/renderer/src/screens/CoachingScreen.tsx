@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { VictoireDTO, MatriceItemDTO, ReveDTO, CapsuleDTO, BilanReponseDTO } from '../../../shared/types'
+import { getRituelConfig, setRituelConfig, type RituelConfig } from '../data/rituels'
 
-type Outil = 'affirmation' | 'victoires' | 'matrice' | 'reves' | 'capsule' | 'bilan'
+type Outil = 'affirmation' | 'victoires' | 'matrice' | 'reves' | 'capsule' | 'bilan' | 'rituels'
 
 const ONGLETS: { key: Outil; icon: string; label: string }[] = [
   { key: 'affirmation', icon: '🌅', label: 'Affirmation' },
@@ -9,7 +10,8 @@ const ONGLETS: { key: Outil; icon: string; label: string }[] = [
   { key: 'matrice', icon: '🧘', label: 'Matrice' },
   { key: 'reves', icon: '💭', label: 'Rêves' },
   { key: 'capsule', icon: '📬', label: 'Capsule' },
-  { key: 'bilan', icon: '📊', label: 'Bilan de vie' }
+  { key: 'bilan', icon: '📊', label: 'Bilan de vie' },
+  { key: 'rituels', icon: '🌙', label: 'Rituels' }
 ]
 
 const BILAN_QUESTIONS = [
@@ -61,6 +63,75 @@ export default function CoachingScreen(): JSX.Element {
       {outil === 'reves' && <RevesPanel />}
       {outil === 'capsule' && <CapsulePanel />}
       {outil === 'bilan' && <BilanPanel />}
+      {outil === 'rituels' && <RituelsPanel />}
+    </div>
+  )
+}
+
+// ─── Rituels Réveil / Coucher ─────────────────────────────────────────────────
+
+function RituelsPanel(): JSX.Element {
+  const [cfg, setCfg] = useState<RituelConfig>(() => getRituelConfig())
+
+  function maj(patch: Partial<RituelConfig>): void {
+    const next = { ...cfg, ...patch }
+    setCfg(next)
+    setRituelConfig(next)
+  }
+
+  function champHeure(label: string, key: keyof RituelConfig): JSX.Element {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{label}</span>
+        <input
+          type="number"
+          className="input"
+          min={0}
+          max={24}
+          value={cfg[key] as number}
+          onChange={(e) => maj({ [key]: Math.min(24, Math.max(0, +e.target.value)) } as Partial<RituelConfig>)}
+          style={{ width: 70, textAlign: 'center' }}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="col">
+      <div className="card card-glow">
+        <div style={{ fontSize: 32, marginBottom: 8 }}>🌙</div>
+        <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 4 }}>Mode Réveil / Coucher</div>
+        <div className="text-muted" style={{ marginBottom: 16 }}>
+          Aux heures choisies, NeuroBoost t'invite à un rituel hors écran plutôt qu'au scroll. Lance-le à tout moment via le bouton 🌙 Rituel de la barre latérale.
+        </div>
+        <div className="row-between" style={{ marginBottom: 16 }}>
+          <span style={{ fontWeight: 700 }}>Proposer automatiquement</span>
+          <button
+            className={cfg.actif ? 'btn-primary' : 'btn-ghost'}
+            style={{ fontSize: 13, padding: '6px 16px' }}
+            onClick={() => maj({ actif: !cfg.actif })}
+          >
+            {cfg.actif ? 'Activé' : 'Désactivé'}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid-2" style={{ alignItems: 'start' }}>
+        <div className="card">
+          <div style={{ fontWeight: 700, marginBottom: 10 }}>🌅 Réveil</div>
+          <div className="col" style={{ gap: 10 }}>
+            {champHeure('Début (heure)', 'reveilDebut')}
+            {champHeure('Fin (heure)', 'reveilFin')}
+          </div>
+        </div>
+        <div className="card">
+          <div style={{ fontWeight: 700, marginBottom: 10 }}>🌙 Coucher</div>
+          <div className="col" style={{ gap: 10 }}>
+            {champHeure('Début (heure)', 'coucherDebut')}
+            {champHeure('Fin (heure)', 'coucherFin')}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

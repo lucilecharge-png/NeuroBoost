@@ -45,7 +45,13 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
   const [postItNote, setPostItNote] = useState('')
   const [phaseAvantPostIt, setPhaseAvantPostIt] = useState<Phase>('en-cours')
   const [elapsedS, setElapsedS] = useState(0)
+  const [customMin, setCustomMin] = useState(10)
   const corpoPauseTriggered = useRef(false)
+
+  function lancerCustom() {
+    const min = Math.min(90, Math.max(1, Math.round(customMin) || 1))
+    demarrer(min)
+  }
 
   function demarrer(min: number) {
     setDureePrevue(min)
@@ -247,6 +253,12 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
           <div className="focus-titre">{tache.titre}</div>
           {tache.description && <div className="text-muted" style={{ marginTop: 6 }}>{tache.description}</div>}
         </div>
+        {tache.pourquoi && (
+          <div style={{ width: '100%', maxWidth: 440, padding: '14px 16px', background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.35)', borderRadius: 'var(--radius-lg)', textAlign: 'center' }}>
+            <div style={{ fontSize: 12, color: 'var(--gold)', fontWeight: 700, marginBottom: 4 }}>💛 Pourquoi tu fais ça</div>
+            <div style={{ fontSize: 14, fontStyle: 'italic', lineHeight: 1.6 }}>« {tache.pourquoi} »</div>
+          </div>
+        )}
         <div style={{ width: '100%', maxWidth: 440 }}>
           <div style={{ fontWeight: 700, textAlign: 'center', marginBottom: 14, color: 'var(--text-muted)' }}>
             Pour combien de temps tu t'engages ?
@@ -275,6 +287,46 @@ export default function FocusScreen({ tache, onTerminer, onAbandonner }: Props):
                 <span style={{ fontSize: 11, color: d.min === 2 ? 'rgba(255,255,255,.8)' : 'var(--text-muted)' }}>{d.subtitle}</span>
               </button>
             ))}
+          </div>
+
+          {/* ── Durée personnalisée ── */}
+          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-card)', border: '2px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '12px 14px' }}>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, whiteSpace: 'nowrap' }}>⚙️ Perso</span>
+            <button
+              type="button"
+              className="btn-ghost"
+              style={{ width: 34, height: 34, padding: 0, fontSize: 20, fontWeight: 900, lineHeight: 1 }}
+              onClick={() => setCustomMin((m) => Math.max(1, m - 1))}
+            >
+              −
+            </button>
+            <input
+              type="number"
+              className="input"
+              min={1}
+              max={90}
+              value={customMin}
+              onChange={(e) => setCustomMin(+e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') lancerCustom() }}
+              style={{ width: 64, textAlign: 'center', fontSize: 18, fontWeight: 800 }}
+            />
+            <button
+              type="button"
+              className="btn-ghost"
+              style={{ width: 34, height: 34, padding: 0, fontSize: 20, fontWeight: 900, lineHeight: 1 }}
+              onClick={() => setCustomMin((m) => Math.min(90, m + 1))}
+            >
+              +
+            </button>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>min</span>
+            <button
+              type="button"
+              className="btn-launch"
+              style={{ flex: 1, fontSize: 14 }}
+              onClick={lancerCustom}
+            >
+              🚀 Lancer
+            </button>
           </div>
         </div>
         <div style={{ textAlign: 'center', maxWidth: 380 }}>
