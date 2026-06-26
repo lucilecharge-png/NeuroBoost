@@ -289,6 +289,33 @@ export function terminerTache(db: Db, id: number, _dureeReelleMin?: number): Com
   return resultat
 }
 
+// Annule l'effet d'une complétion sur le profil : retire XP + coins, décrémente
+// le compteur de tâches, et recalcule niveau / xp / xp_prochain à partir de l'XP
+// absolu cumulé (robuste, sans soustraction approximative). Borné à 0.
+// Note : les achievements déjà débloqués ne sont PAS re-verrouillés (à dessein).
+export function annulerCompletion(db: Db, xp: number, coins: number): void {
+  const profil = db.prepare('SELECT * FROM profil WHERE id = 1').get() as Record<string, unknown>
+  const niveau = profil.niveau as number
+  // XP absolu = somme des paliers franchis (k*100) + xp courant
+  const cumulNiveau = 100 * (niveau - 1) * niveau / 2
+  let total = Math.max(0, cumulNiveau + (profil.xp as number) - xp)
+
+  let nNiveau = 1
+  let prochain = xpPourNiveau(1) // 100
+  while (total >= prochain) {
+    total -= prochain
+    nNiveau += 1
+    prochain = xpPourNiveau(nNiveau)
+  }
+
+  const coinsFinal = Math.max(0, (profil.neurocoins as number) - coins)
+  const totalTaches = Math.max(0, (profil.total_taches_terminees as number) - 1)
+
+  db.prepare(`
+    UPDATE profil SET xp = ?, niveau = ?, xp_prochain_niveau = ?, neurocoins = ?, total_taches_terminees = ? WHERE id = 1
+  `).run(total, nNiveau, prochain, coinsFinal, totalTaches)
+}
+
 export function ignorerTache(db: Db, id: number): void {
   db.prepare("UPDATE taches SET statut = 'ignoree', est_mission_jour = 0 WHERE id = ?").run(id)
 }
@@ -346,8 +373,8 @@ function _debloquerAchievement(db: Db, id: string): AchievementDTO[] {
   const a = db.prepare('SELECT * FROM achievements WHERE id = ?').get(id) as Record<string, unknown> | undefined
   if (!a || a.debloque_le) return []
   db.prepare("UPDATE achievements SET debloque_le = datetime('now','localtime') WHERE id = ?").run(id)
-  // Bonus XP
-  if (a.xp_bonus) db.prepare('UPDATE profil SET xp = xp + ? WHERE id = 1').run(a.xp_bonus)
+  // Note : le xp_bonus est affiché dans l'UI mais n'est PAS ajouté à profil.xp
+  // afin de préserver la réversibilité du calcul XP (annulerCompletion).
   return [{ id: a.id as string, titre: a.titre as string, description: a.description as string, icone: a.icone as string, xpBonus: a.xp_bonus as number, debloqueLe: new Date().toISOString() }]
 }
 
