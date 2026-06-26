@@ -6,6 +6,7 @@ import MoisView from '../components/agenda/MoisView'
 import MultiMoisView from '../components/agenda/MultiMoisView'
 import EvenementModal from '../components/agenda/EvenementModal'
 import Celebration from '../components/Celebration'
+import RappelsPermissionBanner from '../components/agenda/RappelsPermissionBanner'
 
 const VUES: { id: VueAgenda; label: string }[] = [
   { id: 'jour', label: 'Jour' }, { id: 'troisJours', label: '3 jours' }, { id: 'semaine', label: 'Semaine' },
@@ -93,6 +94,8 @@ export default function AgendaScreen(): JSX.Element {
           ))}
         </div>
       </div>
+
+      <RappelsPermissionBanner />
 
       {/* Moteur actif */}
       {(vue === 'jour' || vue === 'troisJours' || vue === 'semaine') && (
