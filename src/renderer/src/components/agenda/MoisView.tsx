@@ -7,11 +7,12 @@ interface Props {
   onCreerJour: (date: string) => void
   onEditer: (occ: OccurrenceDTO) => void
   onDeplacer: (occ: OccurrenceDTO, nouvelleDate: string) => void
+  onToggleFait: (occ: OccurrenceDTO) => Promise<void>
 }
 
 function p2(n: number): string { return n.toString().padStart(2, '0') }
 
-export default function MoisView({ ancre, occurrences, onCreerJour, onEditer, onDeplacer }: Props): JSX.Element {
+export default function MoisView({ ancre, occurrences, onCreerJour, onEditer, onDeplacer, onToggleFait }: Props): JSX.Element {
   const [y, m] = ancre.split('-').map(Number)
   const premier = new Date(y, m - 1, 1)
   const decalLundi = (premier.getDay() + 6) % 7
@@ -39,9 +40,13 @@ export default function MoisView({ ancre, occurrences, onCreerJour, onEditer, on
             <div className="mois-num">{d.getDate()}</div>
             {occ.slice(0, 3).map((o) => (
               <div key={`${o.masterId}-${o.dateOccurrence}`} className="mois-pastille"
-                style={{ background: o.categorie?.couleur ?? '#7c3aed' }}
+                style={{ background: o.categorie?.couleur ?? '#7c3aed', opacity: o.fait ? 0.55 : 1, textDecoration: o.fait ? 'line-through' : 'none' }}
                 onClick={(e) => { e.stopPropagation(); onEditer(o) }}
                 onMouseDown={(e) => { e.stopPropagation(); dragOcc.current = o }}>
+                <span onClick={(e) => { e.stopPropagation(); onToggleFait(o) }}
+                  onMouseDown={(e) => e.stopPropagation()} style={{ cursor: 'pointer', marginRight: 4 }}>
+                  {o.fait ? '☑' : '☐'}
+                </span>
                 {o.titre}
               </div>
             ))}

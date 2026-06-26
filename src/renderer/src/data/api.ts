@@ -224,6 +224,10 @@ const rawApi: NeuroBoostApi = {
   deleteEvenement: async (masterId, dateOccurrence, mode) => {
     A.deleteEvenement(db, masterId, dateOccurrence, mode)
     replanifierRappelsAgenda()
+  },
+  terminerEvenement: async (masterId, dateOccurrence) => A.terminerEvenement(db, masterId, dateOccurrence),
+  annulerEvenement: async (masterId, dateOccurrence) => {
+    A.annulerEvenement(db, masterId, dateOccurrence)
   }
 }
 

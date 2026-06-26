@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { CategorieDTO, EvenementInput, JourSemaine, ModeRecurrence, OccurrenceDTO, RecurrenceRule } from '../../../../shared/types'
+import type { CategorieDTO, EvenementInput, JourSemaine, ModeRecurrence, OccurrenceDTO, RecurrenceRule, TacheDTO } from '../../../../shared/types'
 import CategoriePicker from './CategoriePicker'
 
 function ajouterMs(debut: string, ms: number): string {
@@ -20,6 +20,8 @@ interface Props {
   onValider: (input: EvenementInput, mode: ModeRecurrence) => Promise<void>
   onSupprimer: (mode: ModeRecurrence) => Promise<void>
   onFermer: () => void
+  quetesActives: TacheDTO[]
+  onToggleFait: (occ: OccurrenceDTO) => Promise<void>
 }
 
 const JOURS: { code: JourSemaine; label: string }[] = [
@@ -49,6 +51,7 @@ export default function EvenementModal(props: Props): JSX.Element {
   const [categorieId, setCategorieId] = useState<number | null>(occurrence?.categorie?.id ?? null)
   const [description, setDescription] = useState(occurrence?.description ?? '')
   const [rappelMin, setRappelMin] = useState<number | null>(occurrence?.rappelMin ?? null)
+  const [tacheId, setTacheId] = useState<number | null>(occurrence?.tacheId ?? null)
 
   const recInit = occurrence?.recurrence ?? null
   const [recurrent, setRecurrent] = useState(recInit !== null)
@@ -78,7 +81,7 @@ export default function EvenementModal(props: Props): JSX.Element {
     const input: EvenementInput = {
       titre: titre.trim(), debut, fin, allDay,
       categorieId, description: description.trim() || null,
-      recurrence: construireRecurrence(), rappelMin
+      recurrence: construireRecurrence(), rappelMin, tacheId
     }
     await props.onValider(input, occurrence?.estRecurrent ? mode : 'serie')
   }
@@ -118,6 +121,14 @@ export default function EvenementModal(props: Props): JSX.Element {
 
         <textarea className="input" placeholder="Notes (optionnel)" value={description}
           onChange={(e) => setDescription(e.target.value)} style={{ marginTop: 10, minHeight: 50 }} />
+
+        <div className="label" style={{ marginTop: 10 }}>Lier à une quête existante</div>
+        <select className="input" value={tacheId ?? ''} onChange={(e) => setTacheId(e.target.value ? Number(e.target.value) : null)}>
+          <option value="">— Aucune (créera une quête en cochant « fait »)</option>
+          {props.quetesActives.map((q) => (
+            <option key={q.id} value={q.id}>{q.titre}</option>
+          ))}
+        </select>
 
         {/* Rappel */}
         <div className="label" style={{ marginTop: 10 }}>Rappel</div>
@@ -188,6 +199,14 @@ export default function EvenementModal(props: Props): JSX.Element {
           {enEdition && (
             <button className="btn-icon" title="Supprimer"
               onClick={() => props.onSupprimer(occurrence?.estRecurrent ? mode : 'serie')}>🗑</button>
+          )}
+          {enEdition && occurrence && (
+            <button
+              className="btn-secondary"
+              onClick={async () => { await props.onToggleFait(occurrence); props.onFermer() }}
+            >
+              {occurrence.fait ? '↩︎ Annuler « fait »' : '✓ Marquer fait'}
+            </button>
           )}
           <button className="btn-launch" onClick={valider} disabled={!titre.trim()}>
             {enEdition ? 'Enregistrer' : 'Créer'}

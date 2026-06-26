@@ -197,6 +197,7 @@ export interface OccurrenceDTO {
   categorie: CategorieDTO | null
   description: string | null
   tacheId: number | null
+  fait: boolean
   estRecurrent: boolean
   recurrence: RecurrenceRule | null
   rappelMin: number | null
@@ -311,6 +312,8 @@ export interface NeuroBoostApi {
   createEvenement: (input: EvenementInput) => Promise<EvenementDTO>
   updateEvenement: (masterId: number, dateOccurrence: string, mode: ModeRecurrence, input: Partial<EvenementInput>) => Promise<void>
   deleteEvenement: (masterId: number, dateOccurrence: string, mode: ModeRecurrence) => Promise<void>
+  terminerEvenement: (masterId: number, dateOccurrence: string) => Promise<CompletionResult>
+  annulerEvenement: (masterId: number, dateOccurrence: string) => Promise<void>
 }
 
 // ─── Types coaching ───────────────────────────────────────────────────────────

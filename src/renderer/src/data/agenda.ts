@@ -1,8 +1,21 @@
 // Logique d'agenda : CRUD catégories/événements, expansion des occurrences,
 // modes d'édition récurrente, rappels. Ne dépend que de l'interface `Db`.
 import type { Db } from './db'
-import type { CategorieDTO, EvenementDTO, EvenementInput, OccurrenceDTO, ModeRecurrence, RecurrenceRule, RappelOccurrence } from '../../../shared/types'
+import type { CategorieDTO, EvenementDTO, EvenementInput, OccurrenceDTO, ModeRecurrence, RecurrenceRule, RappelOccurrence, NiveauEnergie, CompletionResult } from '../../../shared/types'
+import { createTache, terminerTache, deleteTache, annulerCompletion, getProfil } from './game'
 import { serialiserRRULE, parserRRULE, expanseRecurrence, parseDateTime, fmtDateTime } from './recurrence'
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Déduit un niveau d'énergie de la durée d'un événement (mêmes seuils que les Quêtes).
+export function dureeVersEnergie(debut: string, fin: string, allDay: boolean): NiveauEnergie {
+  if (allDay) return 'faible'
+  const min = (parseDateTime(fin).getTime() - parseDateTime(debut).getTime()) / 60000
+  if (min < 5) return 'micro'
+  if (min < 15) return 'faible'
+  if (min < 45) return 'moyenne'
+  return 'haute'
+}
 
 // ─── Catégories ───────────────────────────────────────────────────────────────
 
@@ -80,7 +93,8 @@ function occToDTO(
   debutOcc: string,
   dateOcc: string,
   estRecurrent: boolean,
-  categories: Map<number, CategorieDTO>
+  categories: Map<number, CategorieDTO>,
+  faites: Set<string>
 ): OccurrenceDTO {
   const ev = evToDTO(master)
   return {
@@ -93,6 +107,7 @@ function occToDTO(
     categorie: ev.categorieId ? (categories.get(ev.categorieId) ?? null) : null,
     description: ev.description,
     tacheId: ev.tacheId,
+    fait: faites.has(`${ev.id}|${dateOcc}`),
     estRecurrent,
     recurrence: ev.recurrence,
     rappelMin: ev.rappelMin
@@ -101,6 +116,12 @@ function occToDTO(
 
 export function listEvenements(db: Db, fenetreDebut: string, fenetreFin: string): OccurrenceDTO[] {
   const cats = new Map(listCategories(db).map((c) => [c.id, c]))
+  const faites = new Set(
+    (db.prepare(
+      'SELECT evenement_id, date_occurrence FROM evenement_completion WHERE date_occurrence >= ? AND date_occurrence <= ?'
+    ).all(fenetreDebut, fenetreFin) as { evenement_id: number; date_occurrence: string }[])
+      .map((r) => `${r.evenement_id}|${r.date_occurrence}`)
+  )
 
   const masters = db.prepare(`
     SELECT * FROM evenement
@@ -138,7 +159,7 @@ export function listEvenements(db: Db, fenetreDebut: string, fenetreFin: string)
     if (!rrule) {
       const dateOcc = (m.debut as string).slice(0, 10)
       if (dateOcc >= fenetreDebut && dateOcc <= fenetreFin) {
-        occurrences.push(occToDTO(m, m.debut as string, dateOcc, false, cats))
+        occurrences.push(occToDTO(m, m.debut as string, dateOcc, false, cats, faites))
       }
       continue
     }
@@ -147,7 +168,7 @@ export function listEvenements(db: Db, fenetreDebut: string, fenetreFin: string)
     for (const debutOcc of expanseRecurrence(rule, m.debut as string, fenetreDebut, fenetreFin)) {
       const dateOcc = debutOcc.slice(0, 10)
       if (datesToSkip.has(dateOcc)) continue
-      occurrences.push(occToDTO(m, debutOcc, dateOcc, true, cats))
+      occurrences.push(occToDTO(m, debutOcc, dateOcc, true, cats, faites))
     }
   }
 
@@ -159,7 +180,7 @@ export function listEvenements(db: Db, fenetreDebut: string, fenetreFin: string)
   `).all(fenetreDebut, fenetreFin) as Record<string, unknown>[]
   for (const ov of overrides) {
     const dateOcc = (ov.debut as string).slice(0, 10)
-    occurrences.push(occToDTO(ov, ov.debut as string, dateOcc, false, cats))
+    occurrences.push(occToDTO(ov, ov.debut as string, dateOcc, false, cats, faites))
   }
 
   occurrences.sort((a, b) => a.debut.localeCompare(b.debut))
@@ -287,4 +308,86 @@ export function listProchainsRappels(db: Db, maintenant: string, horizonJours: n
   }
   rappels.sort((a, b) => a.debut.localeCompare(b.debut))
   return rappels
+}
+
+// ─── Complétion d'événements → quêtes ─────────────────────────────────────────
+
+function nomCategorie(db: Db, categorieId: number | null): string | null {
+  if (categorieId == null) return null
+  const r = db.prepare('SELECT nom FROM categorie WHERE id = ?').get(categorieId) as { nom: string } | undefined
+  return r?.nom ?? null
+}
+
+// Marque une occurrence comme faite. Renvoie un CompletionResult vide (zéro gain)
+// si l'occurrence est déjà complétée (idempotence).
+export function terminerEvenement(db: Db, masterId: number, dateOccurrence: string): CompletionResult {
+  const dejaFait = db.prepare(
+    'SELECT 1 FROM evenement_completion WHERE evenement_id = ? AND date_occurrence = ?'
+  ).get(masterId, dateOccurrence)
+  if (dejaFait) {
+    return {
+      profil: getProfil(db),
+      xpGagne: 0, coinsGagnes: 0, levelUp: false, nouveauNiveau: null, achievementsDebloques: []
+    }
+  }
+
+  const m = getMaster(db, masterId)
+  if (!m) throw new Error(`Événement ${masterId} introuvable`)
+
+  const tacheLiee = m.tache_id as number | null
+  let tacheCible: number
+  let autoCreee: 0 | 1
+
+  if (tacheLiee != null) {
+    const statut = (db.prepare('SELECT statut FROM taches WHERE id = ?').get(tacheLiee) as { statut: string } | undefined)?.statut
+    if (statut === 'active' || statut === 'en_cours') {
+      tacheCible = tacheLiee
+      autoCreee = 0
+    } else {
+      tacheCible = -1; autoCreee = 1
+    }
+  } else {
+    tacheCible = -1; autoCreee = 1
+  }
+
+  if (autoCreee === 1) {
+    const energie = dureeVersEnergie(m.debut as string, m.fin as string, Boolean(m.all_day))
+    const tache = createTache(db, {
+      titre: m.titre as string,
+      niveauEnergie: energie,
+      categorie: nomCategorie(db, (m.categorie_id as number | null) ?? null)
+    })
+    tacheCible = tache.id
+  }
+
+  const resultat = terminerTache(db, tacheCible)
+  db.prepare(
+    'INSERT INTO evenement_completion (evenement_id, date_occurrence, tache_id, auto_creee) VALUES (?, ?, ?, ?)'
+  ).run(masterId, dateOccurrence, tacheCible, autoCreee)
+  return resultat
+}
+
+// Annule la complétion d'une occurrence : revert XP/coins, puis supprime la quête
+// éclair (auto_creee) ou rouvre la quête liée. No-op si non complétée.
+export function annulerEvenement(db: Db, masterId: number, dateOccurrence: string): void {
+  const comp = db.prepare(
+    'SELECT tache_id, auto_creee FROM evenement_completion WHERE evenement_id = ? AND date_occurrence = ?'
+  ).get(masterId, dateOccurrence) as { tache_id: number | null; auto_creee: number } | undefined
+  if (!comp) return
+
+  if (comp.tache_id != null) {
+    const tache = db.prepare('SELECT xp_recompense, coins_recompense FROM taches WHERE id = ?')
+      .get(comp.tache_id) as { xp_recompense: number; coins_recompense: number } | undefined
+    if (tache) {
+      annulerCompletion(db, tache.xp_recompense, tache.coins_recompense)
+      if (comp.auto_creee === 1) {
+        deleteTache(db, comp.tache_id)
+      } else {
+        db.prepare("UPDATE taches SET statut = 'active', completee_le = NULL WHERE id = ?").run(comp.tache_id)
+      }
+    }
+  }
+
+  db.prepare('DELETE FROM evenement_completion WHERE evenement_id = ? AND date_occurrence = ?')
+    .run(masterId, dateOccurrence)
 }

@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { CategorieDTO, EvenementInput, ModeRecurrence, OccurrenceDTO } from '../../../shared/types'
+import type { CategorieDTO, EvenementInput, ModeRecurrence, OccurrenceDTO, TacheDTO, CompletionResult } from '../../../shared/types'
 import { plageVue, naviguer, libellePeriode, type VueAgenda, NB_MOIS } from '../data/agendaNav'
 import TimelineView from '../components/agenda/TimelineView'
 import MoisView from '../components/agenda/MoisView'
 import MultiMoisView from '../components/agenda/MultiMoisView'
 import EvenementModal from '../components/agenda/EvenementModal'
+import Celebration from '../components/Celebration'
 
 const VUES: { id: VueAgenda; label: string }[] = [
   { id: 'jour', label: 'Jour' }, { id: 'troisJours', label: '3 jours' }, { id: 'semaine', label: 'Semaine' },
@@ -34,12 +35,15 @@ export default function AgendaScreen(): JSX.Element {
   const [occ, setOcc] = useState<OccurrenceDTO[]>([])
   const [categories, setCategories] = useState<CategorieDTO[]>([])
   const [modal, setModal] = useState<{ occurrence: OccurrenceDTO | null; debut: string } | null>(null)
+  const [quetes, setQuetes] = useState<TacheDTO[]>([])
+  const [celebration, setCelebration] = useState<CompletionResult | null>(null)
 
   const plage = plageVue(vue, ancre)
 
   const charger = useCallback(async () => {
     setOcc(await window.api.listEvenements(plage.debut, plage.fin))
     setCategories(await window.api.listCategories())
+    setQuetes(await window.api.listTaches({ statut: 'active' }))
   }, [plage.debut, plage.fin])
 
   useEffect(() => { charger() }, [charger])
@@ -60,10 +64,21 @@ export default function AgendaScreen(): JSX.Element {
     setModal(null); charger()
   }
 
+  async function basculerFait(o: OccurrenceDTO): Promise<void> {
+    if (o.fait) {
+      await window.api.annulerEvenement(o.masterId, o.dateOccurrence)
+    } else {
+      const res = await window.api.terminerEvenement(o.masterId, o.dateOccurrence)
+      if (res.xpGagne > 0) setCelebration(res)
+    }
+    await charger()
+  }
+
   function zoomJour(date: string): void { setVue('jour'); setAncre(date) }
 
   return (
     <div className="screen">
+      <Celebration result={celebration} onClose={() => setCelebration(null)} />
       {/* Barre de navigation */}
       <div className="agenda-bar">
         <div className="row" style={{ gap: 6 }}>
@@ -87,13 +102,15 @@ export default function AgendaScreen(): JSX.Element {
           onCreer={(debut) => setModal({ occurrence: null, debut })}
           onEditer={(o) => setModal({ occurrence: o, debut: o.debut })}
           onDeplacer={(o, nouveauDebut) => setModal({ occurrence: o, debut: nouveauDebut })}
+          onToggleFait={basculerFait}
         />
       )}
       {vue === 'mois' && (
         <MoisView ancre={ancre} occurrences={occ}
           onCreerJour={(date) => setModal({ occurrence: null, debut: `${date} 09:00` })}
           onEditer={(o) => setModal({ occurrence: o, debut: o.debut })}
-          onDeplacer={(o, date) => setModal({ occurrence: o, debut: `${date} ${o.debut.slice(11)}` })} />
+          onDeplacer={(o, date) => setModal({ occurrence: o, debut: `${date} ${o.debut.slice(11)}` })}
+          onToggleFait={basculerFait} />
       )}
       {(vue === 'trimestre' || vue === 'semestre' || vue === 'neufMois' || vue === 'annee') && (
         <MultiMoisView ancre={ancre} nbMois={NB_MOIS[vue]} occurrences={occ}
@@ -105,6 +122,8 @@ export default function AgendaScreen(): JSX.Element {
         <EvenementModal
           occurrence={modal.occurrence} debutInitial={modal.debut}
           categories={categories} onCreerCategorie={creerCategorie}
+          quetesActives={quetes}
+          onToggleFait={basculerFait}
           onValider={valider} onSupprimer={supprimer} onFermer={() => setModal(null)} />
       )}
     </div>
