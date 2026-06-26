@@ -335,4 +335,16 @@ export const MIGRATIONS: string[] = [
      'Lister les abonnements en cours, repérer l''inutile et en résilier au moins un.',
      'moyenne', 30, 30, 15, 'Admin');
   `
+  ,
+  // v11 — Complétion d'événements d'agenda (par occurrence) → quêtes
+  `
+  CREATE TABLE evenement_completion (
+    evenement_id    INTEGER NOT NULL,
+    date_occurrence TEXT NOT NULL,
+    tache_id        INTEGER REFERENCES taches(id) ON DELETE SET NULL,
+    auto_creee      INTEGER NOT NULL DEFAULT 0,
+    completee_le    TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (evenement_id, date_occurrence)
+  );
+  `
 ]
