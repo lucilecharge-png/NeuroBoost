@@ -462,6 +462,15 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 .mois-num { font-size:12px; color:#c0b5e0; margin-bottom:2px; }
 .mois-pastille { font-size:11px; color:#fff; border-radius:4px; padding:1px 5px; margin-bottom:2px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; cursor:pointer; }
 .mois-plus { font-size:10px; color:#9a8fc0; }
+.event-check {
+  background: transparent;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px 0 0;
+  line-height: 1;
+}
 
 /* Multi-mois */
 .multi-mois { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:14px; }

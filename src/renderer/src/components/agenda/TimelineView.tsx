@@ -12,6 +12,7 @@ interface Props {
   onCreer: (debut: string) => void          // clic créneau vide
   onEditer: (occ: OccurrenceDTO) => void     // clic occurrence
   onDeplacer: (occ: OccurrenceDTO, nouveauDebut: string) => void // drop
+  onToggleFait: (occ: OccurrenceDTO) => void
 }
 
 function p2(n: number): string { return n.toString().padStart(2, '0') }
@@ -21,7 +22,7 @@ function aujourdHuiLocal(): string {
   return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`
 }
 
-export default function TimelineView({ jours, occurrences, onCreer, onEditer, onDeplacer }: Props): JSX.Element {
+export default function TimelineView({ jours, occurrences, onCreer, onEditer, onDeplacer, onToggleFait }: Props): JSX.Element {
   const heures = Array.from({ length: HEURE_FIN - HEURE_BASE }, (_, i) => HEURE_BASE + i)
   const drag = useRef<{ occ: OccurrenceDTO } | null>(null)
 
@@ -57,9 +58,16 @@ export default function TimelineView({ jours, occurrences, onCreer, onEditer, on
           <div key={jour} className="timeline-allday-cell" onClick={() => onCreer(`${jour} 00:00`)}>
             {occurrences.filter((o) => o.dateOccurrence === jour && o.allDay).map((o) => (
               <div key={`${o.masterId}-${o.dateOccurrence}`} className="allday-chip"
-                style={{ background: o.categorie?.couleur ?? '#7c3aed' }}
+                style={{ background: o.categorie?.couleur ?? '#7c3aed', opacity: o.fait ? 0.55 : 1 }}
                 onClick={(e) => { e.stopPropagation(); onEditer(o) }}>
-                {o.estRecurrent ? '↻ ' : ''}{o.titre}
+                <button className="event-check" title={o.fait ? 'Fait' : 'Marquer fait'}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); onToggleFait(o) }}>
+                  {o.fait ? '☑' : '☐'}
+                </button>
+                <span style={{ textDecoration: o.fait ? 'line-through' : 'none' }}>
+                  {o.estRecurrent ? '↻ ' : ''}{o.titre}
+                </span>
               </div>
             ))}
           </div>
@@ -79,10 +87,17 @@ export default function TimelineView({ jours, occurrences, onCreer, onEditer, on
               const { top, height } = positionOccurrence(o.debut, o.fin, HEURE_BASE, PX_H)
               return (
                 <div key={`${o.masterId}-${o.dateOccurrence}`} className="timeline-event"
-                  style={{ top, height, background: o.categorie?.couleur ?? '#7c3aed' }}
+                  style={{ top, height, background: o.categorie?.couleur ?? '#7c3aed', opacity: o.fait ? 0.55 : 1 }}
                   onClick={(e) => { e.stopPropagation(); onEditer(o) }}
                   onMouseDown={(e) => { e.stopPropagation(); drag.current = { occ: o } }}>
-                  <span className="timeline-event-titre">{o.estRecurrent ? '↻ ' : ''}{o.titre}</span>
+                  <button className="event-check" title={o.fait ? 'Fait' : 'Marquer fait'}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); onToggleFait(o) }}>
+                    {o.fait ? '☑' : '☐'}
+                  </button>
+                  <span className="timeline-event-titre" style={{ textDecoration: o.fait ? 'line-through' : 'none' }}>
+                    {o.estRecurrent ? '↻ ' : ''}{o.titre}
+                  </span>
                 </div>
               )
             })}
