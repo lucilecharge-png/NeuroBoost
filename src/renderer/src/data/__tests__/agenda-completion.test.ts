@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { dureeVersEnergie } from '../agenda'
+import { makeTestDb } from './testDb'
+import * as A from '../agenda'
+import { createTache, getProfil } from '../game'
 
 describe('dureeVersEnergie', () => {
   it('mappe la durée sur un niveau d\'énergie', () => {
@@ -17,5 +20,59 @@ describe('dureeVersEnergie', () => {
 
   it('renvoie faible pour une journée entière', () => {
     expect(dureeVersEnergie('2026-06-10 00:00', '2026-06-10 23:59', true)).toBe('faible')
+  })
+})
+
+describe('terminerEvenement', () => {
+  it('cas à la volée : crée une quête terminée et journalise la complétion', async () => {
+    const db = await makeTestDb()
+    const ev = A.createEvenement(db, { titre: 'Méditer', debut: '2026-06-10 09:00', fin: '2026-06-10 09:10' })
+    const res = A.terminerEvenement(db, ev.id, '2026-06-10')
+    expect(res.xpGagne).toBe(15) // 10 min ⇒ faible ⇒ 15 XP
+    const row = db.prepare('SELECT * FROM evenement_completion WHERE evenement_id = ? AND date_occurrence = ?')
+      .get(ev.id, '2026-06-10') as Record<string, unknown>
+    expect(row.auto_creee).toBe(1)
+    const tache = db.prepare('SELECT * FROM taches WHERE id = ?').get(row.tache_id) as Record<string, unknown>
+    expect(tache.statut).toBe('terminee')
+    expect(tache.titre).toBe('Méditer')
+  })
+
+  it('cas lié : termine la quête liée, auto_creee = 0', async () => {
+    const db = await makeTestDb()
+    const t = createTache(db, { titre: 'Dossier', niveauEnergie: 'haute' })
+    const ev = A.createEvenement(db, { titre: 'Bloc dossier', debut: '2026-06-10 09:00', fin: '2026-06-10 10:00', tacheId: t.id })
+    const res = A.terminerEvenement(db, ev.id, '2026-06-10')
+    expect(res.xpGagne).toBe(60) // XP de la quête liée (haute)
+    const row = db.prepare('SELECT * FROM evenement_completion WHERE evenement_id = ?').get(ev.id) as Record<string, unknown>
+    expect(row.auto_creee).toBe(0)
+    expect(row.tache_id).toBe(t.id)
+    const tache = db.prepare('SELECT statut FROM taches WHERE id = ?').get(t.id) as { statut: string }
+    expect(tache.statut).toBe('terminee')
+  })
+
+  it('idempotent : une 2ᵉ complétion de la même occurrence ne re-crédite pas', async () => {
+    const db = await makeTestDb()
+    const ev = A.createEvenement(db, { titre: 'X', debut: '2026-06-10 09:00', fin: '2026-06-10 09:30' })
+    A.terminerEvenement(db, ev.id, '2026-06-10')
+    const profilApres1 = getProfil(db)
+    A.terminerEvenement(db, ev.id, '2026-06-10')
+    const profilApres2 = getProfil(db)
+    expect(profilApres2.xp).toBe(profilApres1.xp)
+    expect(profilApres2.totalTachesTerminees).toBe(profilApres1.totalTachesTerminees)
+    const n = db.prepare('SELECT COUNT(*) as n FROM evenement_completion WHERE evenement_id = ?').get(ev.id) as { n: number }
+    expect(n.n).toBe(1)
+  })
+
+  it('occurrence récurrente : cocher une date n\'affecte pas les autres', async () => {
+    const db = await makeTestDb()
+    const ev = A.createEvenement(db, {
+      titre: 'Sport', debut: '2026-06-01 18:00', fin: '2026-06-01 19:00',
+      recurrence: { freq: 'hebdo', intervalle: 1, jours: ['LU'] }
+    })
+    A.terminerEvenement(db, ev.id, '2026-06-08')
+    const n = db.prepare('SELECT COUNT(*) as n FROM evenement_completion WHERE evenement_id = ?').get(ev.id) as { n: number }
+    expect(n.n).toBe(1)
+    const row = db.prepare('SELECT date_occurrence FROM evenement_completion WHERE evenement_id = ?').get(ev.id) as { date_occurrence: string }
+    expect(row.date_occurrence).toBe('2026-06-08')
   })
 })

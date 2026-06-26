@@ -1,7 +1,8 @@
 // Logique d'agenda : CRUD catégories/événements, expansion des occurrences,
 // modes d'édition récurrente, rappels. Ne dépend que de l'interface `Db`.
 import type { Db } from './db'
-import type { CategorieDTO, EvenementDTO, EvenementInput, OccurrenceDTO, ModeRecurrence, RecurrenceRule, RappelOccurrence, NiveauEnergie } from '../../../shared/types'
+import type { CategorieDTO, EvenementDTO, EvenementInput, OccurrenceDTO, ModeRecurrence, RecurrenceRule, RappelOccurrence, NiveauEnergie, CompletionResult } from '../../../shared/types'
+import { createTache, terminerTache, deleteTache, annulerCompletion, getProfil } from './game'
 import { serialiserRRULE, parserRRULE, expanseRecurrence, parseDateTime, fmtDateTime } from './recurrence'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -299,4 +300,61 @@ export function listProchainsRappels(db: Db, maintenant: string, horizonJours: n
   }
   rappels.sort((a, b) => a.debut.localeCompare(b.debut))
   return rappels
+}
+
+// ─── Complétion d'événements → quêtes ─────────────────────────────────────────
+
+function nomCategorie(db: Db, categorieId: number | null): string | null {
+  if (categorieId == null) return null
+  const r = db.prepare('SELECT nom FROM categorie WHERE id = ?').get(categorieId) as { nom: string } | undefined
+  return r?.nom ?? null
+}
+
+// Marque une occurrence comme faite. Renvoie un CompletionResult vide (zéro gain)
+// si l'occurrence est déjà complétée (idempotence).
+export function terminerEvenement(db: Db, masterId: number, dateOccurrence: string): CompletionResult {
+  const dejaFait = db.prepare(
+    'SELECT 1 FROM evenement_completion WHERE evenement_id = ? AND date_occurrence = ?'
+  ).get(masterId, dateOccurrence)
+  if (dejaFait) {
+    return {
+      profil: getProfil(db),
+      xpGagne: 0, coinsGagnes: 0, levelUp: false, nouveauNiveau: null, achievementsDebloques: []
+    }
+  }
+
+  const m = getMaster(db, masterId)
+  if (!m) throw new Error(`Événement ${masterId} introuvable`)
+
+  const tacheLiee = m.tache_id as number | null
+  let tacheCible: number
+  let autoCreee: 0 | 1
+
+  if (tacheLiee != null) {
+    const statut = (db.prepare('SELECT statut FROM taches WHERE id = ?').get(tacheLiee) as { statut: string } | undefined)?.statut
+    if (statut === 'active' || statut === 'en_cours') {
+      tacheCible = tacheLiee
+      autoCreee = 0
+    } else {
+      tacheCible = -1; autoCreee = 1
+    }
+  } else {
+    tacheCible = -1; autoCreee = 1
+  }
+
+  if (autoCreee === 1) {
+    const energie = dureeVersEnergie(m.debut as string, m.fin as string, Boolean(m.all_day))
+    const tache = createTache(db, {
+      titre: m.titre as string,
+      niveauEnergie: energie,
+      categorie: nomCategorie(db, (m.categorie_id as number | null) ?? null)
+    })
+    tacheCible = tache.id
+  }
+
+  const resultat = terminerTache(db, tacheCible)
+  db.prepare(
+    'INSERT INTO evenement_completion (evenement_id, date_occurrence, tache_id, auto_creee) VALUES (?, ?, ?, ?)'
+  ).run(masterId, dateOccurrence, tacheCible, autoCreee)
+  return resultat
 }
