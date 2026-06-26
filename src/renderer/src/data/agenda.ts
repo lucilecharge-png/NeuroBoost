@@ -93,7 +93,8 @@ function occToDTO(
   debutOcc: string,
   dateOcc: string,
   estRecurrent: boolean,
-  categories: Map<number, CategorieDTO>
+  categories: Map<number, CategorieDTO>,
+  faites: Set<string>
 ): OccurrenceDTO {
   const ev = evToDTO(master)
   return {
@@ -106,6 +107,7 @@ function occToDTO(
     categorie: ev.categorieId ? (categories.get(ev.categorieId) ?? null) : null,
     description: ev.description,
     tacheId: ev.tacheId,
+    fait: faites.has(`${ev.id}|${dateOcc}`),
     estRecurrent,
     recurrence: ev.recurrence,
     rappelMin: ev.rappelMin
@@ -114,6 +116,12 @@ function occToDTO(
 
 export function listEvenements(db: Db, fenetreDebut: string, fenetreFin: string): OccurrenceDTO[] {
   const cats = new Map(listCategories(db).map((c) => [c.id, c]))
+  const faites = new Set(
+    (db.prepare(
+      'SELECT evenement_id, date_occurrence FROM evenement_completion WHERE date_occurrence >= ? AND date_occurrence <= ?'
+    ).all(fenetreDebut, fenetreFin) as { evenement_id: number; date_occurrence: string }[])
+      .map((r) => `${r.evenement_id}|${r.date_occurrence}`)
+  )
 
   const masters = db.prepare(`
     SELECT * FROM evenement
@@ -151,7 +159,7 @@ export function listEvenements(db: Db, fenetreDebut: string, fenetreFin: string)
     if (!rrule) {
       const dateOcc = (m.debut as string).slice(0, 10)
       if (dateOcc >= fenetreDebut && dateOcc <= fenetreFin) {
-        occurrences.push(occToDTO(m, m.debut as string, dateOcc, false, cats))
+        occurrences.push(occToDTO(m, m.debut as string, dateOcc, false, cats, faites))
       }
       continue
     }
@@ -160,7 +168,7 @@ export function listEvenements(db: Db, fenetreDebut: string, fenetreFin: string)
     for (const debutOcc of expanseRecurrence(rule, m.debut as string, fenetreDebut, fenetreFin)) {
       const dateOcc = debutOcc.slice(0, 10)
       if (datesToSkip.has(dateOcc)) continue
-      occurrences.push(occToDTO(m, debutOcc, dateOcc, true, cats))
+      occurrences.push(occToDTO(m, debutOcc, dateOcc, true, cats, faites))
     }
   }
 
@@ -172,7 +180,7 @@ export function listEvenements(db: Db, fenetreDebut: string, fenetreFin: string)
   `).all(fenetreDebut, fenetreFin) as Record<string, unknown>[]
   for (const ov of overrides) {
     const dateOcc = (ov.debut as string).slice(0, 10)
-    occurrences.push(occToDTO(ov, ov.debut as string, dateOcc, false, cats))
+    occurrences.push(occToDTO(ov, ov.debut as string, dateOcc, false, cats, faites))
   }
 
   occurrences.sort((a, b) => a.debut.localeCompare(b.debut))

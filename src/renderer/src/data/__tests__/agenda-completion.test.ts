@@ -114,3 +114,18 @@ describe('annulerEvenement', () => {
     expect(() => A.annulerEvenement(db, ev.id, '2026-06-10')).not.toThrow()
   })
 })
+
+describe('listEvenements — champ fait', () => {
+  it('marque fait uniquement l\'occurrence complétée', async () => {
+    const db = await makeTestDb()
+    const ev = A.createEvenement(db, {
+      titre: 'Sport', debut: '2026-06-01 18:00', fin: '2026-06-01 19:00',
+      recurrence: { freq: 'hebdo', intervalle: 1, jours: ['LU'] }
+    })
+    A.terminerEvenement(db, ev.id, '2026-06-08')
+    const occ = A.listEvenements(db, '2026-06-01', '2026-06-30')
+    const fait = occ.filter((o) => o.fait).map((o) => o.dateOccurrence)
+    expect(fait).toEqual(['2026-06-08'])
+    expect(occ.find((o) => o.dateOccurrence === '2026-06-01')!.fait).toBe(false)
+  })
+})
