@@ -7,7 +7,7 @@ interface Props {
   onCreerJour: (date: string) => void
   onEditer: (occ: OccurrenceDTO) => void
   onDeplacer: (occ: OccurrenceDTO, nouvelleDate: string) => void
-  onToggleFait: (occ: OccurrenceDTO) => void
+  onToggleFait: (occ: OccurrenceDTO) => Promise<void>
 }
 
 function p2(n: number): string { return n.toString().padStart(2, '0') }

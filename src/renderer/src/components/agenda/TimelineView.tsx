@@ -12,7 +12,7 @@ interface Props {
   onCreer: (debut: string) => void          // clic créneau vide
   onEditer: (occ: OccurrenceDTO) => void     // clic occurrence
   onDeplacer: (occ: OccurrenceDTO, nouveauDebut: string) => void // drop
-  onToggleFait: (occ: OccurrenceDTO) => void
+  onToggleFait: (occ: OccurrenceDTO) => Promise<void>
 }
 
 function p2(n: number): string { return n.toString().padStart(2, '0') }
