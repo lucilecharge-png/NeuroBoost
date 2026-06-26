@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { TacheDTO, NiveauEnergie, TacheInput, CompletionResult } from '../../../shared/types'
 import Celebration from '../components/Celebration'
+import DecoupeQuete from '../components/DecoupeQuete'
 import FocusScreen from './FocusScreen'
 import TacheTitreInput from '../components/TacheTitreInput'
 
@@ -20,6 +21,11 @@ export default function QuestesScreen(): JSX.Element {
   const [form, setForm] = useState<TacheInput>({ titre: '', niveauEnergie: 'faible', dureeEstimeeMin: 10 })
   const [celebration, setCelebration] = useState<CompletionResult | null>(null)
   const [focusTache, setFocusTache] = useState<TacheDTO | null>(null)
+  // Découpe en mini-tâches : id de la carte dont le panneau est ouvert
+  const [decoupeId, setDecoupeId] = useState<number | null>(null)
+  // Quête tout juste créée → encart « Découper en mini-tâches ? »
+  const [nouvelleQuete, setNouvelleQuete] = useState<TacheDTO | null>(null)
+  const [nouvelleDecoupe, setNouvelleDecoupe] = useState(false)
 
   const charger = useCallback(async () => {
     const t = await window.api.listTaches({ statut: 'active' })
@@ -30,9 +36,11 @@ export default function QuestesScreen(): JSX.Element {
 
   async function creer() {
     if (!form.titre.trim()) return
-    await window.api.createTache({ ...form, titre: form.titre.trim(), pourquoi: form.pourquoi?.trim() || null })
+    const tache = await window.api.createTache({ ...form, titre: form.titre.trim(), pourquoi: form.pourquoi?.trim() || null })
     setForm({ titre: '', niveauEnergie: 'faible', dureeEstimeeMin: 10 })
     setShowForm(false)
+    setNouvelleQuete(tache)
+    setNouvelleDecoupe(false)
     charger()
   }
 
@@ -147,6 +155,30 @@ export default function QuestesScreen(): JSX.Element {
         </div>
       )}
 
+      {/* ── Encart après création : proposer le découpage en mini-tâches ── */}
+      {nouvelleQuete && (
+        <div className="card" style={{ marginBottom: 20, border: '2px solid var(--accent)' }}>
+          <div style={{ fontWeight: 800, fontSize: 15 }}>🔭 Découper « {nouvelleQuete.titre} » en mini-tâches ?</div>
+          <div className="text-muted" style={{ fontSize: 13, marginTop: 2 }}>Une grosse quête se fait mieux en petits morceaux.</div>
+          {!nouvelleDecoupe ? (
+            <div className="row" style={{ gap: 10, marginTop: 12 }}>
+              <button className="btn-launch" style={{ flex: 1 }} onClick={() => setNouvelleDecoupe(true)}>
+                ✂️ Oui, découper
+              </button>
+              <button className="btn-ghost" style={{ flex: 1 }} onClick={() => setNouvelleQuete(null)}>
+                Non, c'est bon
+              </button>
+            </div>
+          ) : (
+            <DecoupeQuete
+              tache={nouvelleQuete}
+              onTermine={() => { setNouvelleQuete(null); setNouvelleDecoupe(false); charger() }}
+              onAnnuler={() => setNouvelleDecoupe(false)}
+            />
+          )}
+        </div>
+      )}
+
       {/* ── Filtres ── */}
       <div className="row" style={{ gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         <button
@@ -227,7 +259,21 @@ export default function QuestesScreen(): JSX.Element {
                   <button className="btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => terminer(t)}>
                     ✓ Fait
                   </button>
+                  <button
+                    className="btn-ghost"
+                    style={{ flex: 1, fontSize: 12 }}
+                    onClick={() => setDecoupeId((id) => (id === t.id ? null : t.id))}
+                  >
+                    ✂️ Découper
+                  </button>
                 </div>
+                {decoupeId === t.id && (
+                  <DecoupeQuete
+                    tache={t}
+                    onTermine={() => { setDecoupeId(null); charger() }}
+                    onAnnuler={() => setDecoupeId(null)}
+                  />
+                )}
                 <div className="row" style={{ gap: 6 }}>
                   <span className="badge badge-gold">+{t.xpRecompense} XP</span>
                   <span className="text-muted">+{t.coinsRecompense} 🪙</span>
