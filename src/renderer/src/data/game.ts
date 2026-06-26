@@ -373,8 +373,8 @@ function _debloquerAchievement(db: Db, id: string): AchievementDTO[] {
   const a = db.prepare('SELECT * FROM achievements WHERE id = ?').get(id) as Record<string, unknown> | undefined
   if (!a || a.debloque_le) return []
   db.prepare("UPDATE achievements SET debloque_le = datetime('now','localtime') WHERE id = ?").run(id)
-  // Note : le xp_bonus est affiché dans l'UI mais n'est PAS ajouté à profil.xp
-  // afin de préserver la réversibilité du calcul XP (annulerCompletion).
+  // Bonus XP
+  if (a.xp_bonus) db.prepare('UPDATE profil SET xp = xp + ? WHERE id = 1').run(a.xp_bonus)
   return [{ id: a.id as string, titre: a.titre as string, description: a.description as string, icone: a.icone as string, xpBonus: a.xp_bonus as number, debloqueLe: new Date().toISOString() }]
 }
 
