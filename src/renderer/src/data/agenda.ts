@@ -1,8 +1,20 @@
 // Logique d'agenda : CRUD catégories/événements, expansion des occurrences,
 // modes d'édition récurrente, rappels. Ne dépend que de l'interface `Db`.
 import type { Db } from './db'
-import type { CategorieDTO, EvenementDTO, EvenementInput, OccurrenceDTO, ModeRecurrence, RecurrenceRule, RappelOccurrence } from '../../../shared/types'
+import type { CategorieDTO, EvenementDTO, EvenementInput, OccurrenceDTO, ModeRecurrence, RecurrenceRule, RappelOccurrence, NiveauEnergie } from '../../../shared/types'
 import { serialiserRRULE, parserRRULE, expanseRecurrence, parseDateTime, fmtDateTime } from './recurrence'
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Déduit un niveau d'énergie de la durée d'un événement (mêmes seuils que les Quêtes).
+export function dureeVersEnergie(debut: string, fin: string, allDay: boolean): NiveauEnergie {
+  if (allDay) return 'faible'
+  const min = (parseDateTime(fin).getTime() - parseDateTime(debut).getTime()) / 60000
+  if (min < 5) return 'micro'
+  if (min < 15) return 'faible'
+  if (min < 45) return 'moyenne'
+  return 'haute'
+}
 
 // ─── Catégories ───────────────────────────────────────────────────────────────
 
