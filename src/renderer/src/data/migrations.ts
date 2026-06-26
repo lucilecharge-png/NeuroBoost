@@ -347,10 +347,4 @@ export const MIGRATIONS: string[] = [
     PRIMARY KEY (evenement_id, date_occurrence)
   );
   `
-  ,
-  // v12 — Stocke le gain XP/coins réel (tâche + achievements) pour annulerEvenement
-  `
-  ALTER TABLE evenement_completion ADD COLUMN xp_gagne     INTEGER NOT NULL DEFAULT 0;
-  ALTER TABLE evenement_completion ADD COLUMN coins_gagnes  INTEGER NOT NULL DEFAULT 0;
-  `
 ]

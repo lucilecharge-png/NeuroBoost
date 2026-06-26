@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { dureeVersEnergie } from '../agenda'
 import { makeTestDb } from './testDb'
 import * as A from '../agenda'
-import { createTache, getProfil } from '../game'
+import { createTache, getProfil, terminerTache } from '../game'
 
 describe('dureeVersEnergie', () => {
   it('mappe la durée sur un niveau d\'énergie', () => {
@@ -80,6 +80,9 @@ describe('terminerEvenement', () => {
 describe('annulerEvenement', () => {
   it('cas à la volée : supprime la quête éclair et revert XP/coins', async () => {
     const db = await makeTestDb()
+    // Warm-up : consomme l'achievement premier_pas pour qu'il ne pollue pas la mesure.
+    const warm = createTache(db, { titre: 'warmup', niveauEnergie: 'micro' })
+    terminerTache(db, warm.id)
     const avant = getProfil(db)
     const ev = A.createEvenement(db, { titre: 'X', debut: '2026-06-10 09:00', fin: '2026-06-10 09:30' })
     A.terminerEvenement(db, ev.id, '2026-06-10')

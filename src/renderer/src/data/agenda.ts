@@ -352,22 +352,10 @@ export function terminerEvenement(db: Db, masterId: number, dateOccurrence: stri
     tacheCible = tache.id
   }
 
-  // Capturer le profil avant pour mesurer le gain réel (tâche + achievements)
-  const profilAvant = db.prepare('SELECT xp, neurocoins, niveau FROM profil WHERE id = 1').get() as { xp: number; neurocoins: number; niveau: number }
-  const cumulAvant = 100 * (profilAvant.niveau - 1) * profilAvant.niveau / 2
-  const xpTotalAvant = cumulAvant + profilAvant.xp
-
   const resultat = terminerTache(db, tacheCible)
-
-  const profilApres = db.prepare('SELECT xp, neurocoins, niveau FROM profil WHERE id = 1').get() as { xp: number; neurocoins: number; niveau: number }
-  const cumulApres = 100 * (profilApres.niveau - 1) * profilApres.niveau / 2
-  const xpTotalApres = cumulApres + profilApres.xp
-  const xpGagneTotal = xpTotalApres - xpTotalAvant
-  const coinsGagnesTotal = profilApres.neurocoins - profilAvant.neurocoins
-
   db.prepare(
-    'INSERT INTO evenement_completion (evenement_id, date_occurrence, tache_id, auto_creee, xp_gagne, coins_gagnes) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(masterId, dateOccurrence, tacheCible, autoCreee, xpGagneTotal, coinsGagnesTotal)
+    'INSERT INTO evenement_completion (evenement_id, date_occurrence, tache_id, auto_creee) VALUES (?, ?, ?, ?)'
+  ).run(masterId, dateOccurrence, tacheCible, autoCreee)
   return resultat
 }
 
@@ -375,16 +363,20 @@ export function terminerEvenement(db: Db, masterId: number, dateOccurrence: stri
 // éclair (auto_creee) ou rouvre la quête liée. No-op si non complétée.
 export function annulerEvenement(db: Db, masterId: number, dateOccurrence: string): void {
   const comp = db.prepare(
-    'SELECT tache_id, auto_creee, xp_gagne, coins_gagnes FROM evenement_completion WHERE evenement_id = ? AND date_occurrence = ?'
-  ).get(masterId, dateOccurrence) as { tache_id: number | null; auto_creee: number; xp_gagne: number; coins_gagnes: number } | undefined
+    'SELECT tache_id, auto_creee FROM evenement_completion WHERE evenement_id = ? AND date_occurrence = ?'
+  ).get(masterId, dateOccurrence) as { tache_id: number | null; auto_creee: number } | undefined
   if (!comp) return
 
   if (comp.tache_id != null) {
-    annulerCompletion(db, comp.xp_gagne, comp.coins_gagnes)
-    if (comp.auto_creee === 1) {
-      deleteTache(db, comp.tache_id)
-    } else {
-      db.prepare("UPDATE taches SET statut = 'active', completee_le = NULL WHERE id = ?").run(comp.tache_id)
+    const tache = db.prepare('SELECT xp_recompense, coins_recompense FROM taches WHERE id = ?')
+      .get(comp.tache_id) as { xp_recompense: number; coins_recompense: number } | undefined
+    if (tache) {
+      annulerCompletion(db, tache.xp_recompense, tache.coins_recompense)
+      if (comp.auto_creee === 1) {
+        deleteTache(db, comp.tache_id)
+      } else {
+        db.prepare("UPDATE taches SET statut = 'active', completee_le = NULL WHERE id = ?").run(comp.tache_id)
+      }
     }
   }
 
