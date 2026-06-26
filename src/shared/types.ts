@@ -312,6 +312,8 @@ export interface NeuroBoostApi {
   createEvenement: (input: EvenementInput) => Promise<EvenementDTO>
   updateEvenement: (masterId: number, dateOccurrence: string, mode: ModeRecurrence, input: Partial<EvenementInput>) => Promise<void>
   deleteEvenement: (masterId: number, dateOccurrence: string, mode: ModeRecurrence) => Promise<void>
+  terminerEvenement: (masterId: number, dateOccurrence: string) => Promise<CompletionResult>
+  annulerEvenement: (masterId: number, dateOccurrence: string) => Promise<void>
 }
 
 // ─── Types coaching ───────────────────────────────────────────────────────────
