@@ -76,3 +76,38 @@ describe('terminerEvenement', () => {
     expect(row.date_occurrence).toBe('2026-06-08')
   })
 })
+
+describe('annulerEvenement', () => {
+  it('cas à la volée : supprime la quête éclair et revert XP/coins', async () => {
+    const db = await makeTestDb()
+    const avant = getProfil(db)
+    const ev = A.createEvenement(db, { titre: 'X', debut: '2026-06-10 09:00', fin: '2026-06-10 09:30' })
+    A.terminerEvenement(db, ev.id, '2026-06-10')
+    const row = db.prepare('SELECT tache_id FROM evenement_completion WHERE evenement_id = ?').get(ev.id) as { tache_id: number }
+    A.annulerEvenement(db, ev.id, '2026-06-10')
+    const apres = getProfil(db)
+    expect(apres.xp).toBe(avant.xp)
+    expect(apres.neurocoins).toBe(avant.neurocoins)
+    expect(apres.totalTachesTerminees).toBe(avant.totalTachesTerminees)
+    expect(db.prepare('SELECT 1 FROM taches WHERE id = ?').get(row.tache_id)).toBeUndefined()
+    expect(db.prepare('SELECT 1 FROM evenement_completion WHERE evenement_id = ?').get(ev.id)).toBeUndefined()
+  })
+
+  it('cas lié : rouvre la quête (active) sans la supprimer', async () => {
+    const db = await makeTestDb()
+    const t = createTache(db, { titre: 'Dossier', niveauEnergie: 'moyenne' })
+    const ev = A.createEvenement(db, { titre: 'Bloc', debut: '2026-06-10 09:00', fin: '2026-06-10 09:30', tacheId: t.id })
+    A.terminerEvenement(db, ev.id, '2026-06-10')
+    A.annulerEvenement(db, ev.id, '2026-06-10')
+    const tache = db.prepare('SELECT statut, completee_le FROM taches WHERE id = ?').get(t.id) as { statut: string; completee_le: string | null }
+    expect(tache.statut).toBe('active')
+    expect(tache.completee_le).toBeNull()
+    expect(db.prepare('SELECT 1 FROM evenement_completion WHERE evenement_id = ?').get(ev.id)).toBeUndefined()
+  })
+
+  it('no-op si l\'occurrence n\'est pas complétée', async () => {
+    const db = await makeTestDb()
+    const ev = A.createEvenement(db, { titre: 'X', debut: '2026-06-10 09:00', fin: '2026-06-10 09:30' })
+    expect(() => A.annulerEvenement(db, ev.id, '2026-06-10')).not.toThrow()
+  })
+})
