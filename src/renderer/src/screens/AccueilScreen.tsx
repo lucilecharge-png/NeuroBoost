@@ -3,7 +3,6 @@ import type { TacheDTO, ProfilDTO, EnergieDTO, CompletionResult, NiveauEnergieJo
 import Celebration from '../components/Celebration'
 import FocusScreen from './FocusScreen'
 import TemplatesModal from '../components/TemplatesModal'
-import RevueHebdoModal, { getISOWeek } from '../components/RevueHebdoModal'
 import ExcuseBusterModal from '../components/ExcuseBusterModal'
 
 const ENERGIE_LABELS: Record<number, { emoji: string; label: string }> = {
@@ -14,8 +13,8 @@ const ENERGIE_LABELS: Record<number, { emoji: string; label: string }> = {
   5: { emoji: '⚡', label: 'En feu' }
 }
 
-const ENERGIE_COULEUR: Record<string, string> = { micro: '#10b981', faible: '#a855f7', moyenne: '#f59e0b', haute: '#ef4444' }
-const ENERGIE_LABEL: Record<string, string> = { micro: '⚡ Micro', faible: '✨ Légère', moyenne: '🔥 Moyenne', haute: '💪 Haute' }
+const ENERGIE_COULEUR: Record<string, string> = { micro: '#5f9e7c', faible: '#6585b8', moyenne: '#bd9a5d', haute: '#cc6b66' }
+const ENERGIE_LABEL: Record<string, string> = { micro: 'Micro', faible: 'Légère', moyenne: 'Moyenne', haute: 'Haute' }
 
 function salutation(): string {
   const h = new Date().getHours()
@@ -35,8 +34,6 @@ export default function AccueilScreen(): JSX.Element {
   const [loading, setLoading] = useState(true)
   const [capture, setCapture] = useState('')
   const [showTemplates, setShowTemplates] = useState(false)
-  const [showRevue, setShowRevue] = useState(false)
-  const [revueFaite, setRevueFaite] = useState(false)
   const [excuseTache, setExcuseTache] = useState<TacheDTO | null>(null)
   const [journeeSans, setJourneeSans] = useState(false)
   const [miniTache, setMiniTache] = useState<TacheDTO | null>(null)
@@ -85,11 +82,6 @@ export default function AccueilScreen(): JSX.Element {
   }
 
   useEffect(() => { charger() }, [charger])
-
-  useEffect(() => {
-    const semaine = getISOWeek(new Date())
-    window.api.getRevueHebdo(semaine).then((r) => setRevueFaite(!!r)).catch(console.error)
-  }, [])
 
   useEffect(() => {
     if (journeeSans && !miniTache) chargerMiniTache()
@@ -167,8 +159,8 @@ export default function AccueilScreen(): JSX.Element {
       <div style={{ marginBottom: 28 }}>
         {!profil || profil.pseudo === 'Héros' ? (
           <div style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 4 }}>
-              {salutation()} 👋
+            <div style={{ fontSize: 26, fontWeight: 700, marginBottom: 4, fontFamily: 'var(--font-display)', letterSpacing: '-.2px' }}>
+              {salutation()}
             </div>
             <div className="text-muted" style={{ marginBottom: 10, fontSize: 14 }}>
               Comment tu t'appelles ? Je le retiendrai pour la prochaine fois.
@@ -188,17 +180,17 @@ export default function AccueilScreen(): JSX.Element {
             </div>
           </div>
         ) : (
-          <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 4 }}>
+          <div style={{ fontSize: 26, fontWeight: 700, marginBottom: 4, fontFamily: 'var(--font-display)', letterSpacing: '-.3px' }}>
             {salutation()}, {profil.pseudo}
           </div>
         )}
         {streakBonus > 0 && (
           <div className="streak-badge" style={{ marginBottom: 8 }}>
-            🔥 Streak bonus : +{streakBonus} 🪙 pour être revenu !
+            Streak bonus : +{streakBonus} crédits pour être revenu
           </div>
         )}
         {profil && profil.streakJours > 1 && (
-          <div className="streak-badge">🔥 {profil.streakJours} jours de suite</div>
+          <div className="streak-badge">{profil.streakJours} jours de suite</div>
         )}
 
         {consistance && (
@@ -224,7 +216,6 @@ export default function AccueilScreen(): JSX.Element {
                     height: 16,
                     borderRadius: '50%',
                     background: actif ? 'var(--green)' : 'var(--border)',
-                    boxShadow: actif ? '0 0 6px rgba(16,185,129,.5)' : 'none',
                     border: i === 6 ? '2px solid var(--accent)' : 'none',
                     boxSizing: 'border-box'
                   }}
@@ -245,14 +236,14 @@ export default function AccueilScreen(): JSX.Element {
           style={{
             marginBottom: 20,
             padding: '18px 20px',
-            background: 'linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.04))',
-            border: '2px solid var(--gold)',
+            background: 'rgba(189,154,93,.07)',
+            border: '1px solid var(--gold)',
             borderRadius: 'var(--radius-lg)'
           }}
         >
           <div className="row-between" style={{ marginBottom: 6 }}>
-            <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--gold)', letterSpacing: .5, textTransform: 'uppercase' }}>
-              👑 Ta tâche pivot
+            <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--gold)', letterSpacing: 1, textTransform: 'uppercase' }}>
+              Ta tâche pivot
             </div>
             <button
               className="btn-icon"
@@ -262,10 +253,10 @@ export default function AccueilScreen(): JSX.Element {
               ✕
             </button>
           </div>
-          <div style={{ fontWeight: 900, fontSize: 20, marginBottom: 4 }}>{pivot.titre}</div>
+          <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 4 }}>{pivot.titre}</div>
           {pivot.pourquoi ? (
             <div style={{ fontSize: 13, marginBottom: 14, fontStyle: 'italic', color: 'var(--gold)' }}>
-              💛 « {pivot.pourquoi} »
+              « {pivot.pourquoi} »
             </div>
           ) : (
             <div className="text-muted" style={{ fontSize: 13, marginBottom: 14 }}>
@@ -273,7 +264,7 @@ export default function AccueilScreen(): JSX.Element {
             </div>
           )}
           <button className="btn-launch" style={{ width: '100%' }} onClick={() => setFocusTache(pivot)}>
-            🚀 Attaquer le Boss Final
+            Attaquer le Boss Final
           </button>
         </div>
       ) : (
@@ -287,7 +278,7 @@ export default function AccueilScreen(): JSX.Element {
             fontSize: 13
           }}
         >
-          👑 Aucune tâche pivot. Marque d'une étoile la SEULE chose qui changerait tout cette semaine.
+          Aucune tâche pivot. Marque d'une étoile la SEULE chose qui changerait tout cette semaine.
         </div>
       )}
 
@@ -321,12 +312,12 @@ export default function AccueilScreen(): JSX.Element {
           className="card"
           style={{
             marginBottom: 20,
-            background: 'linear-gradient(135deg, rgba(124,58,237,.12), rgba(14,165,233,.06))',
-            border: '1px solid rgba(124,58,237,.3)'
+            background: 'var(--accent-soft)',
+            border: '1px solid rgba(101,133,184,.3)'
           }}
         >
           <div className="row-between" style={{ marginBottom: 8 }}>
-            <div style={{ fontWeight: 800, fontSize: 16 }}>🌙 Mode Journée Sans</div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>Mode Journée Sans</div>
             <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => activerJourneeSans(false)}>
               Revenir au mode normal
             </button>
@@ -339,7 +330,7 @@ export default function AccueilScreen(): JSX.Element {
               <div className="mission-titre" style={{ marginBottom: 8 }}>{miniTache.titre}</div>
               <div className="row" style={{ gap: 8 }}>
                 <button className="btn-launch" style={{ flex: 2 }} onClick={() => setFocusTache(miniTache)}>
-                  🚀 Juste ça
+                  Juste ça
                 </button>
                 <button
                   className="btn-ghost"
@@ -366,8 +357,8 @@ export default function AccueilScreen(): JSX.Element {
           style={{
             marginBottom: 16,
             padding: '12px 16px',
-            background: 'rgba(124,58,237,.08)',
-            border: '1px solid rgba(124,58,237,.25)',
+            background: 'var(--accent-soft)',
+            border: '1px solid rgba(101,133,184,.25)',
             borderRadius: 'var(--radius)',
             display: 'flex',
             alignItems: 'center',
@@ -376,7 +367,7 @@ export default function AccueilScreen(): JSX.Element {
           }}
         >
           <div style={{ fontSize: 13 }}>
-            🌙 Journée difficile ? Passe en <strong>mode minimum</strong> pour garder ta chaîne sans t'épuiser.
+            Journée difficile ? Passe en <strong>mode minimum</strong> pour garder ta chaîne sans t'épuiser.
           </div>
           <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }} onClick={() => activerJourneeSans(true)}>
             Activer
@@ -387,7 +378,7 @@ export default function AccueilScreen(): JSX.Element {
       {/* ── Missions du jour ── */}
       <div style={{ marginBottom: 20 }}>
         <div className="row-between" style={{ marginBottom: 12 }}>
-          <div style={{ fontWeight: 900, fontSize: 18 }}>⚔️ Tes 3 missions du jour</div>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>Tes 3 missions du jour</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={regenerer}>
               ↻ Changer
@@ -397,7 +388,7 @@ export default function AccueilScreen(): JSX.Element {
               style={{ fontSize: 13 }}
               onClick={() => setShowTemplates(true)}
             >
-              🎲 Choisis pour moi
+              Choisis pour moi
             </button>
           </div>
         </div>
@@ -433,13 +424,13 @@ export default function AccueilScreen(): JSX.Element {
                   <span className={`badge badge-${t.niveauEnergie}`} style={{ background: ENERGIE_COULEUR[t.niveauEnergie] + '22', color: ENERGIE_COULEUR[t.niveauEnergie] }}>
                     {ENERGIE_LABEL[t.niveauEnergie]}
                   </span>
-                  <span className="mission-duree">⏱ {t.dureeEstimeeMin} min</span>
+                  <span className="mission-duree">{t.dureeEstimeeMin} min</span>
                   <span className="badge badge-gold">+{t.xpRecompense} XP</span>
-                  <span className="text-muted">+{t.coinsRecompense} 🪙</span>
+                  <span className="text-muted">+{t.coinsRecompense} crédits</span>
                 </div>
                 <div className="row" style={{ gap: 8 }}>
                   <button className="btn-launch" style={{ flex: 2 }} onClick={() => setFocusTache(t)}>
-                    🚀 LANCER
+                    Lancer
                   </button>
                   <button className="btn-ghost" style={{ flex: 1, fontSize: 13 }} onClick={() => terminer(t)}>
                     ✓ Déjà fait
@@ -493,30 +484,6 @@ export default function AccueilScreen(): JSX.Element {
         />
       )}
 
-      {showRevue && (
-        <RevueHebdoModal
-          onClose={() => setShowRevue(false)}
-          onSaved={() => setRevueFaite(true)}
-        />
-      )}
-
-      <button
-        className={revueFaite ? 'btn-ghost' : 'btn-launch'}
-        style={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
-          borderRadius: 999,
-          padding: '12px 20px',
-          fontSize: 14,
-          fontWeight: 700,
-          zIndex: 50,
-          background: revueFaite ? 'rgba(16,185,129,.15)' : undefined
-        }}
-        onClick={() => setShowRevue(true)}
-      >
-        {revueFaite ? '✅ Revue faite' : '📅 Revue de la semaine'}
-      </button>
     </div>
   )
 }

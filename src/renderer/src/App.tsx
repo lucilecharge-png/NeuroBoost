@@ -11,6 +11,7 @@ import RendezVousScreen from './screens/RendezVousScreen'
 import AgendaScreen from './screens/AgendaScreen'
 import RituelEcran from './components/RituelEcran'
 import BackupModal from './components/BackupModal'
+import Icon, { type IconName } from './components/Icon'
 import { getRituelConfig, phaseActuelle, rituelFaitAujourdhui, marquerRituelFait, type Phase } from './data/rituels'
 
 type Onglet = 'accueil' | 'quetes' | 'agenda' | 'tunnel' | 'captures' | 'coaching' | 'timer' | 'rendezvous' | 'recompenses'
@@ -42,10 +43,10 @@ export default function App(): JSX.Element {
     window.api.getProfil().then(setProfil)
   }, [onglet])
 
-  function nav(id: Onglet, icon: string, label: string): JSX.Element {
+  function nav(id: Onglet, icon: IconName, label: string): JSX.Element {
     return (
       <button className={`nav-item${onglet === id ? ' active' : ''}`} onClick={() => { setOnglet(id); setSidebarOuvert(false) }}>
-        <span className="nav-icon">{icon}</span>
+        <span className="nav-icon"><Icon name={icon} /></span>
         {label}
       </button>
     )
@@ -100,32 +101,32 @@ export default function App(): JSX.Element {
               <div className="xp-bar-label">{profil.xp} / {profil.xpProchainNiveau} XP</div>
             </div>
             <div className="coins-badge">
-              🪙 {profil.neurocoins} NeuroCoins
+              <Icon name="coins" size={15} /> {profil.neurocoins} NeuroCoins
             </div>
           </>
         )}
 
         {/* Navigation */}
-        {nav('accueil', '⌂', 'Accueil')}
-        {nav('quetes', '⚔️', 'Toutes mes quêtes')}
-        {nav('agenda', '📅', 'Agenda')}
-        {nav('tunnel', '🔭', 'Le Tunnel')}
-        {nav('captures', '💡', 'Cerveau rapide')}
+        {nav('accueil', 'accueil', 'Accueil')}
+        {nav('quetes', 'quetes', 'Toutes mes quêtes')}
+        {nav('agenda', 'agenda', 'Agenda')}
+        {nav('tunnel', 'tunnel', 'Le Tunnel')}
+        {nav('captures', 'captures', 'Cerveau rapide')}
 
-        {nav('coaching', '🧠', 'Coaching')}
-        {nav('timer', '⏱', 'Timer')}
-        {nav('rendezvous', '📌', 'Rendez-vous')}
+        {nav('coaching', 'coaching', 'Coaching')}
+        {nav('timer', 'timer', 'Timer')}
+        {nav('rendezvous', 'rendezvous', 'Rendez-vous')}
 
         <div style={{ flex: 1 }} />
         <button className="nav-item" onClick={() => { ouvrirRituel(); setSidebarOuvert(false) }}>
-          <span className="nav-icon">🌙</span>
+          <span className="nav-icon"><Icon name="rituel" /></span>
           Rituel
         </button>
         <button className="nav-item" onClick={() => { setBackupOuvert(true); setSidebarOuvert(false) }}>
-          <span className="nav-icon">💾</span>
+          <span className="nav-icon"><Icon name="sauvegarde" /></span>
           Sauvegarde
         </button>
-        {nav('recompenses', '🏆', 'Récompenses')}
+        {nav('recompenses', 'recompenses', 'Récompenses')}
       </nav>
 
       {/* ── Contenu ── */}
