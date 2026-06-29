@@ -11,6 +11,7 @@ import RendezVousScreen from './screens/RendezVousScreen'
 import AgendaScreen from './screens/AgendaScreen'
 import RituelEcran from './components/RituelEcran'
 import BackupModal from './components/BackupModal'
+import CompteSyncModal from './components/CompteSyncModal'
 import { getRituelConfig, phaseActuelle, rituelFaitAujourdhui, marquerRituelFait, type Phase } from './data/rituels'
 
 type Onglet = 'accueil' | 'quetes' | 'agenda' | 'tunnel' | 'captures' | 'coaching' | 'timer' | 'rendezvous' | 'recompenses'
@@ -20,6 +21,7 @@ export default function App(): JSX.Element {
   const [profil, setProfil] = useState<ProfilDTO | null>(null)
   const [rituel, setRituel] = useState<Phase | null>(null)
   const [backupOuvert, setBackupOuvert] = useState(false)
+  const [compteOuvert, setCompteOuvert] = useState(false)
   const [sidebarOuvert, setSidebarOuvert] = useState(false)
 
   useEffect(() => {
@@ -62,6 +64,7 @@ export default function App(): JSX.Element {
         />
       )}
       {backupOuvert && <BackupModal onFermer={() => setBackupOuvert(false)} />}
+      {compteOuvert && <CompteSyncModal onFermer={() => setCompteOuvert(false)} />}
 
       {/* ── Barre supérieure mobile (bouton menu) ── */}
       <header className="mobile-topbar">
@@ -124,6 +127,10 @@ export default function App(): JSX.Element {
         <button className="nav-item" onClick={() => { setBackupOuvert(true); setSidebarOuvert(false) }}>
           <span className="nav-icon">💾</span>
           Sauvegarde
+        </button>
+        <button className="nav-item" onClick={() => { setCompteOuvert(true); setSidebarOuvert(false) }}>
+          <span className="nav-icon">☁️</span>
+          Compte & Synchro
         </button>
         {nav('recompenses', '🏆', 'Récompenses')}
       </nav>
