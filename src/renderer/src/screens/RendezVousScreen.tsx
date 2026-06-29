@@ -45,7 +45,7 @@ export default function RendezVousScreen(): JSX.Element {
 
   return (
     <div className="screen" style={{ maxWidth: 600 }}>
-      <div className="screen-title">📌 Rendez-vous Fantômes</div>
+      <div className="screen-title">📌 Créneaux sacrés</div>
       <div className="screen-subtitle">Prends rendez-vous avec toi-même. NeuroBoost te le rappellera comme un vrai engagement.</div>
 
       {/* ── Création ── */}

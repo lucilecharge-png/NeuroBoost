@@ -158,6 +158,15 @@ body {
 .nav-icon { display: flex; align-items: center; justify-content: center; width: 20px; opacity: .9; }
 .nav-item.active .nav-icon { opacity: 1; }
 
+.nav-section {
+  font-size: 10px; font-weight: 700; letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--text-muted); opacity: .6;
+  padding: 0 12px; margin: 14px 0 4px;
+  user-select: none;
+}
+.nav-section:first-of-type { margin-top: 6px; }
+
 .main-content { flex: 1; overflow-y: auto; background: transparent; }
 
 /* ── Cards ──────────────────────────────────────────────────────────────────── */

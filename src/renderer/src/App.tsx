@@ -110,21 +110,26 @@ export default function App(): JSX.Element {
         )}
 
         {/* Navigation */}
+        <div className="nav-section">Mon jour</div>
         {nav('accueil', 'accueil', 'Accueil')}
-        {nav('quetes', 'quetes', 'Toutes mes quêtes')}
         {nav('agenda', 'agenda', 'Agenda')}
+        {nav('rendezvous', 'rendezvous', 'Créneaux sacrés')}
+
+        <div className="nav-section">Passer à l'action</div>
+        {nav('quetes', 'quetes', 'Toutes mes quêtes')}
         {nav('tunnel', 'tunnel', 'Le Tunnel')}
+        {nav('timer', 'timer', 'Timer')}
         {nav('captures', 'captures', 'Cerveau rapide')}
 
-        {nav('coaching', 'coaching', 'Coaching')}
-        {nav('timer', 'timer', 'Timer')}
-        {nav('rendezvous', 'rendezvous', 'Rendez-vous')}
-
-        <div style={{ flex: 1 }} />
+        <div className="nav-section">Tenir dans la durée</div>
+        {nav('recompenses', 'recompenses', 'Récompenses')}
         <button className="nav-item" onClick={() => { ouvrirRituel(); setSidebarOuvert(false) }}>
           <span className="nav-icon"><Icon name="rituel" /></span>
           Rituel
         </button>
+        {nav('coaching', 'coaching', 'Coaching')}
+
+        <div style={{ flex: 1 }} />
         <button className="nav-item" onClick={() => { setBackupOuvert(true); setSidebarOuvert(false) }}>
           <span className="nav-icon"><Icon name="sauvegarde" /></span>
           Sauvegarde
@@ -133,7 +138,6 @@ export default function App(): JSX.Element {
           <span className="nav-icon"><Icon name="compte" /></span>
           Compte & Synchro
         </button>
-        {nav('recompenses', 'recompenses', 'Récompenses')}
       </nav>
 
       {/* ── Contenu ── */}
