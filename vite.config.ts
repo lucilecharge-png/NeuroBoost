@@ -6,6 +6,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 // PWA NeuroBoost — site statique servi par Cloudflare Pages.
 export default defineConfig({
   root: 'src/renderer',
+  // La racine Vite est src/renderer, mais les fichiers .env (.env.local, etc.)
+  // vivent à la racine du dépôt — on l'indique explicitement.
+  envDir: resolve('.'),
   publicDir: 'public',
   base: '/',
   resolve: { alias: { '@': resolve('src/renderer/src') } },
