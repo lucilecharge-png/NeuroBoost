@@ -20,6 +20,7 @@ export type IconName =
   | 'sauvegarde'
   | 'recompenses'
   | 'coins'
+  | 'compte'
 
 type Props = {
   name: IconName
@@ -90,6 +91,13 @@ const PATHS: Record<IconName, JSX.Element> = {
     <>
       <circle cx="12" cy="12" r="8" />
       <path d="M12 8v8M9.5 9.8c0-1 1.1-1.8 2.5-1.8s2.5.8 2.5 1.8-1.1 1.5-2.5 1.5-2.5.6-2.5 1.6 1.1 1.8 2.5 1.8 2.5-.8 2.5-1.8" />
+    </>
+  ),
+  // Compte & Synchro — nuage de synchronisation
+  compte: (
+    <>
+      <path d="M7 18a4 4 0 0 1-.5-7.97 5 5 0 0 1 9.7-1.2A3.5 3.5 0 0 1 17.5 18H7Z" />
+      <path d="M9.5 13.5 12 11l2.5 2.5M12 11v5.5" />
     </>
   )
 }

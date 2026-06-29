@@ -5,6 +5,7 @@ import type { NeuroBoostApi, RendezVousDTO, SousTacheProposee } from '../../../s
 import * as G from './game'
 import * as A from './agenda'
 import { initDb, schedulePersist, persist, type Db } from './db'
+import { scheduleSync } from './sync/controller'
 
 let db: Db
 
@@ -239,6 +240,7 @@ const api = new Proxy(rawApi, {
     return (...args: unknown[]) => {
       const result = (value as (...a: unknown[]) => unknown)(...args)
       schedulePersist()
+      scheduleSync()
       return result
     }
   }
