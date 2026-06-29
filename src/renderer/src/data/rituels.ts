@@ -57,3 +57,41 @@ export function rituelFaitAujourdhui(phase: Phase): boolean {
 export function marquerRituelFait(phase: Phase): void {
   localStorage.setItem(cleJour(phase), '1')
 }
+
+// ── Tâches de chaque routine (matin / nuit) ─────────────────────────────────
+// Listes éditables par l'utilisateur (ajout/suppression), persistées par appareil.
+// On part de listes par défaut puis on stocke la version personnalisée.
+
+const TACHES_DEFAUT: Record<Phase, string[]> = {
+  reveil: [
+    "💧 Bois un grand verre d'eau",
+    '🌬️ Respire profondément 5 fois',
+    '🤸 Étire-toi 2 minutes',
+    "✍️ Écris une seule intention pour aujourd'hui"
+  ],
+  coucher: [
+    '📵 Range ton téléphone hors de portée',
+    '🌬️ Respire lentement, 5 cycles',
+    '🏆 Pense à une victoire de ta journée',
+    '🔅 Tamise les lumières'
+  ]
+}
+
+const cleTaches = (phase: Phase): string => `neuroboost-rituel-taches-${phase}`
+
+export function getRituelTaches(phase: Phase): string[] {
+  try {
+    const raw = localStorage.getItem(cleTaches(phase))
+    if (raw) {
+      const arr = JSON.parse(raw)
+      if (Array.isArray(arr)) return arr.filter((t): t is string => typeof t === 'string')
+    }
+  } catch {
+    /* localStorage illisible → on retombe sur les valeurs par défaut */
+  }
+  return [...TACHES_DEFAUT[phase]]
+}
+
+export function setRituelTaches(phase: Phase, taches: string[]): void {
+  localStorage.setItem(cleTaches(phase), JSON.stringify(taches))
+}
