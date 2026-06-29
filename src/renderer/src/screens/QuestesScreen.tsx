@@ -26,6 +26,8 @@ export default function QuestesScreen(): JSX.Element {
   // Quête tout juste créée → encart « Découper en mini-tâches ? »
   const [nouvelleQuete, setNouvelleQuete] = useState<TacheDTO | null>(null)
   const [nouvelleDecoupe, setNouvelleDecoupe] = useState(false)
+  // Cartes en cours d'animation de validation (avant retrait de la liste)
+  const [sortants, setSortants] = useState<Set<number>>(new Set())
 
   const charger = useCallback(async () => {
     const t = await window.api.listTaches({ statut: 'active' })
@@ -45,9 +47,15 @@ export default function QuestesScreen(): JSX.Element {
   }
 
   async function terminer(t: TacheDTO) {
+    // 1) on déclenche l'animation « validée » sur la carte…
+    setSortants((prev) => new Set(prev).add(t.id))
+    // 2) …puis, une fois l'animation jouée, on enregistre et on retire la carte.
     const res = await window.api.terminerTache(t.id)
-    setCelebration(res)
-    setTaches((prev) => prev.filter((x) => x.id !== t.id))
+    setTimeout(() => {
+      setCelebration(res)
+      setTaches((prev) => prev.filter((x) => x.id !== t.id))
+      setSortants((prev) => { const next = new Set(prev); next.delete(t.id); return next })
+    }, 480)
   }
 
   async function supprimer(id: number) {
@@ -228,7 +236,7 @@ export default function QuestesScreen(): JSX.Element {
           {affichees.map((t) => {
             const n = NIVEAUX.find((x) => x.key === t.niveauEnergie)!
             return (
-              <div key={t.id} className="mission-card">
+              <div key={t.id} className={`mission-card${sortants.has(t.id) ? ' done' : ''}`}>
                 <div className="row-between">
                   <div style={{ flex: 1 }}>
                     <div className="row" style={{ gap: 8, marginBottom: 4 }}>
@@ -252,16 +260,15 @@ export default function QuestesScreen(): JSX.Element {
                     <button className="btn-icon" onClick={() => supprimer(t.id)} title="Supprimer">🗑</button>
                   </div>
                 </div>
-                <div className="row" style={{ gap: 8 }}>
-                  <button className="btn-launch" style={{ flex: 2 }} onClick={() => setFocusTache(t)}>
+                <div className="quete-actions">
+                  <button className="btn-launch" onClick={() => setFocusTache(t)}>
                     🚀 LANCER
                   </button>
-                  <button className="btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => terminer(t)}>
+                  <button className="btn-ghost" onClick={() => terminer(t)}>
                     ✓ Fait
                   </button>
                   <button
                     className="btn-ghost"
-                    style={{ flex: 1, fontSize: 12 }}
                     onClick={() => setDecoupeId((id) => (id === t.id ? null : t.id))}
                   >
                     ✂️ Découper

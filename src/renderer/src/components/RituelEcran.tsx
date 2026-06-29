@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import type { Phase } from '../data/rituels'
 
 interface Props {
@@ -54,10 +54,21 @@ export default function RituelEcran({ phase, onFermer }: Props): JSX.Element {
     )
   }
 
-  return (
-    <div className="focus-overlay" style={{ background: phase === 'reveil'
+  // Scène volontairement sombre et immersive : on fige les jetons sombres ici
+  // pour qu'elle reste lisible même quand l'app est en thème clair.
+  const sceneSombre = {
+    '--text': '#e7eaef',
+    '--text-muted': '#98a1b0',
+    '--bg-card': '#161b23',
+    '--border': '#262d39',
+    '--gold': '#bd9a5d',
+    background: phase === 'reveil'
       ? 'radial-gradient(ellipse at 50% 30%, rgb(48,36,12), rgb(3,11,20))'
-      : 'radial-gradient(ellipse at 50% 30%, rgb(26,18,48), rgb(3,11,20))' }}>
+      : 'radial-gradient(ellipse at 50% 30%, rgb(26,18,48), rgb(3,11,20))'
+  } as CSSProperties
+
+  return (
+    <div className="focus-overlay" style={sceneSombre}>
       <div style={{ fontSize: 64, marginBottom: 8 }}>{c.emoji}</div>
       <div className="focus-titre">{c.titre}</div>
       <div className="text-muted" style={{ textAlign: 'center', maxWidth: 420, marginBottom: 6 }}>{c.sous}</div>

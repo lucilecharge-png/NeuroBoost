@@ -21,6 +21,7 @@ export type IconName =
   | 'recompenses'
   | 'coins'
   | 'compte'
+  | 'reglages'
 
 type Props = {
   name: IconName
@@ -98,6 +99,13 @@ const PATHS: Record<IconName, JSX.Element> = {
     <>
       <path d="M7 18a4 4 0 0 1-.5-7.97 5 5 0 0 1 9.7-1.2A3.5 3.5 0 0 1 17.5 18H7Z" />
       <path d="M9.5 13.5 12 11l2.5 2.5M12 11v5.5" />
+    </>
+  ),
+  // Réglages — engrenage
+  reglages: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1M18.4 18.4l-2.1-2.1M7.7 7.7 5.6 5.6" />
     </>
   )
 }

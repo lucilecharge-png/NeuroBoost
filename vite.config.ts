@@ -11,6 +11,9 @@ export default defineConfig({
   envDir: resolve('.'),
   publicDir: 'public',
   base: '/',
+  // Honore la variable d'env PORT (utile quand plusieurs serveurs de dev
+  // tournent en parallèle) ; retombe sur 5173 par défaut.
+  server: { port: process.env.PORT ? Number(process.env.PORT) : 5173 },
   resolve: { alias: { '@': resolve('src/renderer/src') } },
   plugins: [
     react(),

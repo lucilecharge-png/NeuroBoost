@@ -12,6 +12,8 @@ export default function TunnelScreen(): JSX.Element {
   const [celebration, setCelebration] = useState<CompletionResult | null>(null)
   const [focusTache, setFocusTache] = useState<TacheDTO | null>(null)
   const [voirReste, setVoirReste] = useState(false)
+  // Carte « Maintenant » en cours d'animation de validation
+  const [sortant, setSortant] = useState(false)
 
   // ── Découpe en mini-tâches ──
   const [decoupeOuvert, setDecoupeOuvert] = useState(false)
@@ -27,9 +29,13 @@ export default function TunnelScreen(): JSX.Element {
   useEffect(() => { charger() }, [charger])
 
   async function terminer(t: TacheDTO) {
+    setSortant(true)
     const res = await window.api.terminerTache(t.id)
-    setCelebration(res)
-    setTaches((prev) => prev.filter((x) => x.id !== t.id))
+    setTimeout(() => {
+      setCelebration(res)
+      setTaches((prev) => prev.filter((x) => x.id !== t.id))
+      setSortant(false)
+    }, 480)
   }
 
   if (focusTache) {
@@ -76,21 +82,22 @@ export default function TunnelScreen(): JSX.Element {
                 padding: '24px 22px',
                 background: 'linear-gradient(135deg, rgba(124,58,237,.18), rgba(14,165,233,.06))',
                 border: '2px solid var(--accent)',
-                borderRadius: 'var(--radius-lg)'
+                borderRadius: 'var(--radius-lg)',
+                animation: sortant ? 'quete-done 480ms cubic-bezier(.4,0,.2,1) forwards' : undefined
               }}
             >
               <div style={{ fontWeight: 900, fontSize: 22, marginBottom: 6 }}>{maintenant.titre}</div>
               {maintenant.pourquoi && (
                 <div style={{ fontSize: 13, fontStyle: 'italic', color: 'var(--gold)', marginBottom: 14 }}>💛 « {maintenant.pourquoi} »</div>
               )}
-              <div className="row" style={{ gap: 10, marginTop: 6 }}>
-                <button className="btn-launch" style={{ flex: 2, fontSize: 16 }} onClick={() => setFocusTache(maintenant)}>
+              <div className="quete-actions" style={{ marginTop: 6 }}>
+                <button className="btn-launch" onClick={() => setFocusTache(maintenant)}>
                   🚀 LANCER
                 </button>
-                <button className="btn-ghost" style={{ flex: 1, fontSize: 13 }} onClick={() => terminer(maintenant)}>
+                <button className="btn-ghost" onClick={() => terminer(maintenant)}>
                   ✓ Fait
                 </button>
-                <button className="btn-ghost" style={{ flex: 1, fontSize: 13 }} onClick={() => setDecoupeOuvert((o) => !o)}>
+                <button className="btn-ghost" onClick={() => setDecoupeOuvert((o) => !o)}>
                   ✂️ Découper
                 </button>
               </div>

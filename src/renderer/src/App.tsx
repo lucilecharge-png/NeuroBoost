@@ -9,21 +9,30 @@ import TimerScreen from './screens/TimerScreen'
 import TunnelScreen from './screens/TunnelScreen'
 import RendezVousScreen from './screens/RendezVousScreen'
 import AgendaScreen from './screens/AgendaScreen'
+import ReglagesScreen from './screens/ReglagesScreen'
 import RituelEcran from './components/RituelEcran'
-import BackupModal from './components/BackupModal'
-import CompteSyncModal from './components/CompteSyncModal'
 import Icon, { type IconName } from './components/Icon'
 import { getRituelConfig, phaseActuelle, rituelFaitAujourdhui, marquerRituelFait, type Phase } from './data/rituels'
 
-type Onglet = 'accueil' | 'quetes' | 'agenda' | 'tunnel' | 'captures' | 'coaching' | 'timer' | 'rendezvous' | 'recompenses'
+type Onglet = 'accueil' | 'quetes' | 'agenda' | 'tunnel' | 'captures' | 'coaching' | 'timer' | 'rendezvous' | 'recompenses' | 'reglages'
+
+// Sections de nav repliées — réglage d'appareil persistant (localStorage).
+const NAV_KEY = 'neuroboost-nav-collapsed'
+function getCollapsed(): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(NAV_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
 
 export default function App(): JSX.Element {
   const [onglet, setOnglet] = useState<Onglet>('accueil')
   const [profil, setProfil] = useState<ProfilDTO | null>(null)
   const [rituel, setRituel] = useState<Phase | null>(null)
-  const [backupOuvert, setBackupOuvert] = useState(false)
-  const [compteOuvert, setCompteOuvert] = useState(false)
   const [sidebarOuvert, setSidebarOuvert] = useState(false)
+  // État replié des groupes de navigation, restauré au démarrage
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(getCollapsed)
 
   useEffect(() => {
     window.api.getProfil().then(setProfil)
@@ -45,12 +54,38 @@ export default function App(): JSX.Element {
     window.api.getProfil().then(setProfil)
   }, [onglet])
 
+  function toggleGroupe(id: string): void {
+    setCollapsed((prev) => {
+      const next = { ...prev, [id]: !prev[id] }
+      localStorage.setItem(NAV_KEY, JSON.stringify(next))
+      return next
+    })
+  }
+
   function nav(id: Onglet, icon: IconName, label: string): JSX.Element {
     return (
       <button className={`nav-item${onglet === id ? ' active' : ''}`} onClick={() => { setOnglet(id); setSidebarOuvert(false) }}>
         <span className="nav-icon"><Icon name={icon} /></span>
         {label}
       </button>
+    )
+  }
+
+  // En-tête de groupe repliable : clic = ouvrir/fermer, persisté.
+  function groupe(id: string, label: string, contenu: JSX.Element): JSX.Element {
+    const replie = !!collapsed[id]
+    return (
+      <>
+        <button
+          className={`nav-group-header${replie ? ' collapsed' : ''}`}
+          onClick={() => toggleGroupe(id)}
+          aria-expanded={!replie}
+        >
+          <span>{label}</span>
+          <span className="nav-group-chevron">▼</span>
+        </button>
+        {!replie && contenu}
+      </>
     )
   }
 
@@ -64,8 +99,6 @@ export default function App(): JSX.Element {
           onFermer={() => { marquerRituelFait(rituel); setRituel(null) }}
         />
       )}
-      {backupOuvert && <BackupModal onFermer={() => setBackupOuvert(false)} />}
-      {compteOuvert && <CompteSyncModal onFermer={() => setCompteOuvert(false)} />}
 
       {/* ── Barre supérieure mobile (bouton menu) ── */}
       <header className="mobile-topbar">
@@ -109,35 +142,37 @@ export default function App(): JSX.Element {
           </>
         )}
 
-        {/* Navigation */}
-        <div className="nav-section">Mon jour</div>
-        {nav('accueil', 'accueil', 'Accueil')}
-        {nav('agenda', 'agenda', 'Agenda')}
-        {nav('rendezvous', 'rendezvous', 'Créneaux sacrés')}
+        {/* Navigation — groupes repliables (état mémorisé) */}
+        {groupe('jour', 'Mon jour', (
+          <>
+            {nav('accueil', 'accueil', 'Accueil')}
+            {nav('agenda', 'agenda', 'Agenda')}
+            {nav('rendezvous', 'rendezvous', 'Créneaux sacrés')}
+          </>
+        ))}
 
-        <div className="nav-section">Passer à l'action</div>
-        {nav('quetes', 'quetes', 'Toutes mes quêtes')}
-        {nav('tunnel', 'tunnel', 'Le Tunnel')}
-        {nav('timer', 'timer', 'Timer')}
-        {nav('captures', 'captures', 'Cerveau rapide')}
+        {groupe('action', "Passer à l'action", (
+          <>
+            {nav('quetes', 'quetes', 'Toutes mes quêtes')}
+            {nav('tunnel', 'tunnel', 'Le Tunnel')}
+            {nav('timer', 'timer', 'Timer')}
+            {nav('captures', 'captures', 'Cerveau rapide')}
+          </>
+        ))}
 
-        <div className="nav-section">Tenir dans la durée</div>
-        {nav('recompenses', 'recompenses', 'Récompenses')}
-        <button className="nav-item" onClick={() => { ouvrirRituel(); setSidebarOuvert(false) }}>
-          <span className="nav-icon"><Icon name="rituel" /></span>
-          Rituel
-        </button>
-        {nav('coaching', 'coaching', 'Coaching')}
+        {groupe('duree', 'Tenir dans la durée', (
+          <>
+            {nav('recompenses', 'recompenses', 'Récompenses')}
+            <button className="nav-item" onClick={() => { ouvrirRituel(); setSidebarOuvert(false) }}>
+              <span className="nav-icon"><Icon name="rituel" /></span>
+              Rituel
+            </button>
+            {nav('coaching', 'coaching', 'Coaching')}
+          </>
+        ))}
 
         <div style={{ flex: 1 }} />
-        <button className="nav-item" onClick={() => { setBackupOuvert(true); setSidebarOuvert(false) }}>
-          <span className="nav-icon"><Icon name="sauvegarde" /></span>
-          Sauvegarde
-        </button>
-        <button className="nav-item" onClick={() => { setCompteOuvert(true); setSidebarOuvert(false) }}>
-          <span className="nav-icon"><Icon name="compte" /></span>
-          Compte & Synchro
-        </button>
+        {nav('reglages', 'reglages', 'Réglages')}
       </nav>
 
       {/* ── Contenu ── */}
@@ -151,6 +186,7 @@ export default function App(): JSX.Element {
         {onglet === 'timer' && <TimerScreen />}
         {onglet === 'rendezvous' && <RendezVousScreen />}
         {onglet === 'recompenses' && <RecompensesScreen />}
+        {onglet === 'reglages' && <ReglagesScreen />}
       </main>
     </div>
   )
