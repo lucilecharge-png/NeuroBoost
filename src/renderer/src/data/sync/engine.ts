@@ -17,12 +17,13 @@ export async function runSync(
   remote: SyncRemote,
   local: LocalDb,
   store: LocalMetaStore,
-  hash: (bytes: Uint8Array) => Promise<string>,
   now: () => string = () => new Date().toISOString()
 ): Promise<SyncResult> {
   const meta = await store.get()
   const localBytes = local.export()
-  const localHash = await hash(localBytes)
+  // Identité par CONTENU (pas par octets) : deux appareils aux données
+  // identiques ont la même empreinte même si leurs fichiers SQLite diffèrent.
+  const localHash = await local.fingerprint()
 
   // Horloge d'édition : date le moment où le contenu local a changé.
   if (localHash !== meta.lastSeenHash) {
@@ -64,7 +65,9 @@ export async function runSync(
   const bytes = await remote.downloadCurrent()
   if (!bytes) return { decision: 'noop', archived, needsReload: false }
   await local.import(bytes)
-  const h = await hash(bytes)
+  // Empreinte du contenu RÉELLEMENT importé (et non des octets téléchargés) :
+  // garantit qu'au prochain tour l'appareil se voit « propre » et ne re-pousse pas.
+  const h = await local.fingerprint()
   meta.baseVersion = remoteMeta!.version
   meta.lastSyncedHash = h
   meta.lastSeenHash = h

@@ -16,6 +16,10 @@ export interface SyncRemote {
 export interface LocalDb {
   export(): Uint8Array
   import(bytes: Uint8Array): Promise<void>
+  // Empreinte du *contenu logique* (indépendante de l'agencement physique des
+  // octets). Sert à détecter un vrai changement de données, sans faux positif
+  // dû à une ré-sérialisation SQLite différente entre appareils.
+  fingerprint(): Promise<string>
 }
 
 export type LocalMeta = {

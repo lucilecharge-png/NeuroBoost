@@ -1,7 +1,6 @@
 import { supabase } from '../supabase'
-import { exportDb, importDb } from '../db'
+import { exportDb, importDb, dbContentFingerprint } from '../db'
 import { runSync } from './engine'
-import { sha256 } from './hash'
 import { localMetaStore } from './localMeta'
 import { createSupabaseRemote } from './supabaseRemote'
 import { getUser, onAuthChange } from './auth'
@@ -9,7 +8,8 @@ import type { LocalDb, SnapshotInfo, SyncStatus } from './types'
 
 const localDb: LocalDb = {
   export: () => exportDb(),
-  import: (bytes) => importDb(bytes)
+  import: (bytes) => importDb(bytes),
+  fingerprint: () => dbContentFingerprint()
 }
 
 let status: SyncStatus = 'idle'
@@ -36,7 +36,7 @@ export async function syncNow(): Promise<void> {
   setStatus('syncing')
   try {
     const remote = createSupabaseRemote(supabase, user.id)
-    const res = await runSync(remote, localDb, localMetaStore, sha256)
+    const res = await runSync(remote, localDb, localMetaStore)
     setStatus('synced')
     if (res.needsReload) window.location.reload()
   } catch (err) {

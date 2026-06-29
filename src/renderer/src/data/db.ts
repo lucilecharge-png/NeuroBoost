@@ -6,6 +6,7 @@ import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js'
 import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url'
 import localforage from 'localforage'
 import { runMigrations } from './migrate'
+import { contentFingerprint } from './sync/fingerprint'
 
 const STORE_KEY = 'neuroboost-db'
 
@@ -109,6 +110,12 @@ export async function persist(): Promise<void> {
 export function exportDb(): Uint8Array {
   if (!dbInstance) throw new Error('Base non initialisée')
   return dbInstance.export()
+}
+
+// Empreinte du contenu logique de la base courante (cf. sync/fingerprint).
+export function dbContentFingerprint(): Promise<string> {
+  if (!dbWrapped) throw new Error('Base non initialisée')
+  return contentFingerprint(dbWrapped)
 }
 
 // Remplace la base courante par le contenu d'un fichier importé.
