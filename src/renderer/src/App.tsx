@@ -97,6 +97,7 @@ export default function App(): JSX.Element {
         <RituelEcran
           phase={rituel}
           onFermer={() => { marquerRituelFait(rituel); setRituel(null) }}
+          onPointsChange={() => window.api.getProfil().then(setProfil)}
         />
       )}
 
@@ -165,7 +166,7 @@ export default function App(): JSX.Element {
             {nav('recompenses', 'recompenses', 'Récompenses')}
             <button className="nav-item" onClick={() => { ouvrirRituel(); setSidebarOuvert(false) }}>
               <span className="nav-icon"><Icon name="rituel" /></span>
-              Rituel
+              Routines
             </button>
             {nav('coaching', 'coaching', 'Coaching')}
           </>

@@ -101,6 +101,7 @@ const rawApi: NeuroBoostApi = {
     G.ignorerTache(db, id)
   },
   regenererMissions: async () => G.regenererMissions(db),
+  gagnerRecompenseRituel: async () => G.gagnerRecompenseRituel(db),
 
   // Découpe en sous-tâches
   decouperTache: async (input, nombre) => {

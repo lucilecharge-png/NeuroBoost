@@ -316,6 +316,39 @@ export function annulerCompletion(db: Db, xp: number, coins: number): void {
   `).run(total, nNiveau, prochain, coinsFinal, totalTaches)
 }
 
+// Petite récompense pour une tâche de routine (matin/soir) cochée. N'augmente pas
+// le compteur de tâches et ne déclenche pas d'achievements — juste XP + coins.
+const XP_RITUEL = 5
+const COINS_RITUEL = 3
+
+export function gagnerRecompenseRituel(db: Db): CompletionResult {
+  const profil = db.prepare('SELECT * FROM profil WHERE id = 1').get() as Record<string, unknown>
+  const ancienNiveau = profil.niveau as number
+  let nouveauXP = (profil.xp as number) + XP_RITUEL
+  let nouveauNiveau = ancienNiveau
+  let xpProchain = profil.xp_prochain_niveau as number
+
+  while (nouveauXP >= xpProchain) {
+    nouveauXP -= xpProchain
+    nouveauNiveau += 1
+    xpProchain = xpPourNiveau(nouveauNiveau)
+  }
+
+  const levelUp = nouveauNiveau > ancienNiveau
+  db.prepare(`
+    UPDATE profil SET xp = ?, niveau = ?, xp_prochain_niveau = ?, neurocoins = neurocoins + ? WHERE id = 1
+  `).run(nouveauXP, nouveauNiveau, xpProchain, COINS_RITUEL)
+
+  return {
+    profil: getProfil(db),
+    xpGagne: XP_RITUEL,
+    coinsGagnes: COINS_RITUEL,
+    levelUp,
+    nouveauNiveau: levelUp ? nouveauNiveau : null,
+    achievementsDebloques: []
+  }
+}
+
 export function ignorerTache(db: Db, id: number): void {
   db.prepare("UPDATE taches SET statut = 'ignoree', est_mission_jour = 0 WHERE id = ?").run(id)
 }

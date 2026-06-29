@@ -4,6 +4,7 @@ import Celebration from '../components/Celebration'
 import FocusScreen from './FocusScreen'
 import TemplatesModal from '../components/TemplatesModal'
 import ExcuseBusterModal from '../components/ExcuseBusterModal'
+import { getNoteJour, setNoteJour } from '../data/rituels'
 
 const ENERGIE_LABELS: Record<number, { emoji: string; label: string }> = {
   1: { emoji: '😴', label: 'À plat' },
@@ -39,6 +40,9 @@ export default function AccueilScreen(): JSX.Element {
   const [miniTache, setMiniTache] = useState<TacheDTO | null>(null)
   const [consistance, setConsistance] = useState<ConsistanceDTO | null>(null)
   const [prenomInput, setPrenomInput] = useState('')
+  // Intention du matin & victoire du soir, écrites dans les routines (partagées via localStorage)
+  const [intention, setIntention] = useState(() => getNoteJour('intention'))
+  const [victoire, setVictoire] = useState(() => getNoteJour('victoire'))
 
   const charger = useCallback(async () => {
     const [cx, m, e, p, js, c] = await Promise.all([
@@ -227,6 +231,34 @@ export default function AccueilScreen(): JSX.Element {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ── Intention du jour & victoire (écrites dans les routines) ── */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ display: 'block', fontWeight: 700, fontSize: 14, marginBottom: 6 }}>
+              ✍️ Mon intention du jour
+            </label>
+            <input
+              className="input"
+              placeholder="Une seule intention pour aujourd'hui…"
+              value={intention}
+              onChange={(e) => { setIntention(e.target.value); setNoteJour('intention', e.target.value) }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontWeight: 700, fontSize: 14, marginBottom: 6 }}>
+              🏆 Ma victoire du jour
+            </label>
+            <input
+              className="input"
+              placeholder="Même une toute petite…"
+              value={victoire}
+              onChange={(e) => { setVictoire(e.target.value); setNoteJour('victoire', e.target.value) }}
+            />
+          </div>
+        </div>
       </div>
 
       {/* ── Tâche pivot (Boss Final) ── */}

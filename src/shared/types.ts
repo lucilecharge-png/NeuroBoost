@@ -232,6 +232,7 @@ export interface NeuroBoostApi {
   terminerTache: (id: number, dureeReelleMin?: number) => Promise<CompletionResult>
   ignorerTache: (id: number) => Promise<void>
   regenererMissions: () => Promise<TacheDTO[]>
+  gagnerRecompenseRituel: () => Promise<CompletionResult>
 
   // Découpe en sous-tâches
   decouperTache: (

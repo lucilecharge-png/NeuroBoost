@@ -65,14 +65,10 @@ export function marquerRituelFait(phase: Phase): void {
 const TACHES_DEFAUT: Record<Phase, string[]> = {
   reveil: [
     "💧 Bois un grand verre d'eau",
-    '🌬️ Respire profondément 5 fois',
-    '🤸 Étire-toi 2 minutes',
-    "✍️ Écris une seule intention pour aujourd'hui"
+    '🤸 Étire-toi 2 minutes'
   ],
   coucher: [
     '📵 Range ton téléphone hors de portée',
-    '🌬️ Respire lentement, 5 cycles',
-    '🏆 Pense à une victoire de ta journée',
     '🔅 Tamise les lumières'
   ]
 }
@@ -94,4 +90,65 @@ export function getRituelTaches(phase: Phase): string[] {
 
 export function setRituelTaches(phase: Phase, taches: string[]): void {
   localStorage.setItem(cleTaches(phase), JSON.stringify(taches))
+}
+
+// ── Intention du matin & victoire du soir ───────────────────────────────────
+// Notes du jour écrites dans les routines et affichées sur l'accueil.
+// Une valeur par jour (clé datée), comme le suivi "rituel fait".
+
+export type TypeNote = 'intention' | 'victoire'
+
+function cleNote(type: TypeNote, d: Date = new Date()): string {
+  return `neuroboost-note-${type}-${d.toLocaleDateString('en-CA')}`
+}
+
+export function getNoteJour(type: TypeNote, d: Date = new Date()): string {
+  return localStorage.getItem(cleNote(type, d)) ?? ''
+}
+
+export function setNoteJour(type: TypeNote, valeur: string, d: Date = new Date()): void {
+  const cle = cleNote(type, d)
+  if (valeur.trim()) localStorage.setItem(cle, valeur)
+  else localStorage.removeItem(cle)
+}
+
+// ── Tâches cochées « fait » du jour ─────────────────────────────────────────
+// Les clés sont datées : tout repart naturellement à zéro à minuit.
+// `faites` = état coché (peut se décocher) ; `recompensees` = déjà récompensé
+// aujourd'hui (jamais retiré) pour empêcher de regagner des points en re-cochant.
+
+function lireListe(cle: string): string[] {
+  try {
+    const raw = localStorage.getItem(cle)
+    if (raw) {
+      const arr = JSON.parse(raw)
+      if (Array.isArray(arr)) return arr.filter((t): t is string => typeof t === 'string')
+    }
+  } catch {
+    /* illisible → liste vide */
+  }
+  return []
+}
+
+const cleFaites = (phase: Phase, d = new Date()): string => `neuroboost-rituel-faites-${d.toLocaleDateString('en-CA')}-${phase}`
+const cleRecomp = (phase: Phase, d = new Date()): string => `neuroboost-rituel-recomp-${d.toLocaleDateString('en-CA')}-${phase}`
+
+export function getRituelFaites(phase: Phase): string[] {
+  return lireListe(cleFaites(phase))
+}
+
+export function setRituelFaites(phase: Phase, faites: string[]): void {
+  localStorage.setItem(cleFaites(phase), JSON.stringify(faites))
+}
+
+export function dejaRecompensee(phase: Phase, texte: string): boolean {
+  return lireListe(cleRecomp(phase)).includes(texte)
+}
+
+export function marquerRecompensee(phase: Phase, texte: string): void {
+  const s = lireListe(cleRecomp(phase))
+  if (!s.includes(texte)) {
+    s.push(texte)
+    localStorage.setItem(cleRecomp(phase), JSON.stringify(s))
+  }
 }
